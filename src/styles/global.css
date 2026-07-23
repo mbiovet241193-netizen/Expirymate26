@@ -518,6 +518,9 @@ table.data-table tr:hover td {
   .page-content {
     padding: 0;
   }
+  .desktop-only-table {
+    display: block !important;
+  }
 }
 
 /* Expiry Follow-up (and other modules): responsive table (desktop) vs Material-style cards (mobile) */
