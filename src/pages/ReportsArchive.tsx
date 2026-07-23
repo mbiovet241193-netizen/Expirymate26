@@ -5,13 +5,6 @@ import type { ReceivingSession, SavedReport } from '../types';
 import { exportToCsv } from '../utils/export';
 import StatusBadge from '../components/common/StatusBadge';
 
-import React, { useEffect, useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { ReportRepo } from '../db/repositories';
-import type { ReceivingSession, SavedReport } from '../types';
-import { exportToCsv } from '../utils/export';
-import StatusBadge from '../components/common/StatusBadge';
-
 const COLUMN_LABELS: Record<string, { ar: string; en: string }> = {
   Product: { ar: 'المنتج', en: 'Product' },
   Category: { ar: 'الفئة', en: 'Category' },
