@@ -4,15 +4,9 @@
 import { BatchRepo, ProductRepo, EmployeeRepo, HealthCertificateRepo, NotificationLogRepo } from '../db/repositories';
 import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
-import { notificationLine, DAILY_REMINDER_LINE, getDayPeriod, DR_DEJA_SIGNATURE } from '../assistant/messages';
+import { notificationLine, DAILY_REMINDER_LINE, DR_DEJA_SIGNATURE, drDejaNotificationIntro } from '../assistant/messages';
 import type { AppSettings } from '../types';
 import type { Lang } from '../i18n/translations';
-
-const NOTIFICATION_INTROS_BY_PERIOD: Record<string, { ar: string; en: string }> = {
-  morning: { ar: 'صباح الخير.', en: 'Good morning.' },
-  afternoon: { ar: 'مرحباً.', en: 'Hello.' },
-  evening: { ar: 'مساء الخير.', en: 'Good evening.' }
-};
 
 async function showNotification(title: string, body: string, route: string, params?: Record<string, string>) {
   if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
@@ -40,11 +34,10 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
   if (Notification.permission !== 'granted') return;
 
   const lang: Lang = settings.language;
-  const period = getDayPeriod();
-  const intro = NOTIFICATION_INTROS_BY_PERIOD[period][lang];
+  const intro = drDejaNotificationIntro(lang, settings.doctorName);
 
   // --- Product expiry categories ---
-  if (n.categories.expiredProducts || n.categories.halfLifeProducts || n.categories.expiringProducts) {
+  if (n.categories.expiredProducts || n.categories.halfLifeProducts || n.categories.expiringProducts || n.categories.expiringSoon) {
     const [products, batches] = await Promise.all([ProductRepo.all(), BatchRepo.all()]);
     const productById = new Map(products.map((p) => [p.id, p]));
     let expiredCount = 0;
@@ -60,7 +53,6 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
         else within30Count++;
       } else if (status === 'after_half') halfLifeCount++;
     }
-    const expiringCount = expiringSoonCount + within30Count;
 
     if (n.categories.expiredProducts && expiredCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredProducts'))) {
       await showNotification(
@@ -71,19 +63,26 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
       );
       await NotificationLogRepo.markSentToday('expiredProducts');
     }
-    if (n.categories.expiringProducts && expiringCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringProducts'))) {
-      // Build one line per shelf-life type present, so the message stays accurate when both exist.
-      const expiringLines = [
-        within30Count > 0 ? notificationLine('expiringProducts', within30Count, lang, false) : null,
-        expiringSoonCount > 0 ? notificationLine('expiringProducts', expiringSoonCount, lang, true) : null
-      ].filter((line): line is string => Boolean(line));
+    // "Expiring Within 30 Days" - long shelf-life products only (> 3 months).
+    if (n.categories.expiringProducts && within30Count > 0 && !(await NotificationLogRepo.wasSentToday('expiringProducts'))) {
       await showNotification(
         'ExpiryMate — Dr. Deja',
-        `${intro}\n${expiringLines.join('\n')}\n${DR_DEJA_SIGNATURE}`,
+        `${intro}\n${notificationLine('expiringProducts', within30Count, lang, false)}\n${DR_DEJA_SIGNATURE}`,
         'batches',
         { status: 'near_expiry' }
       );
       await NotificationLogRepo.markSentToday('expiringProducts');
+    }
+    // "Expiring Soon" - dedicated category for short shelf-life products (<= 3 months),
+    // remaining days 1-9. Kept separate so it can be toggled and sent independently.
+    if (n.categories.expiringSoon && expiringSoonCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringSoon'))) {
+      await showNotification(
+        'ExpiryMate — Dr. Deja',
+        `${intro}\n${notificationLine('expiringProducts', expiringSoonCount, lang, true)}\n${DR_DEJA_SIGNATURE}`,
+        'batches',
+        { status: 'near_expiry' }
+      );
+      await NotificationLogRepo.markSentToday('expiringSoon');
     }
     if (n.categories.halfLifeProducts && halfLifeCount > 0 && !(await NotificationLogRepo.wasSentToday('halfLifeProducts'))) {
       await showNotification(
@@ -138,10 +137,9 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
 }
 
 /** Sends an immediate test notification, bypassing the daily dedup log. */
-export async function sendTestNotification(lang: Lang): Promise<boolean> {
+export async function sendTestNotification(lang: Lang, doctorName?: string | null): Promise<boolean> {
   if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return false;
-  const period = getDayPeriod();
-  const intro = NOTIFICATION_INTROS_BY_PERIOD[period][lang];
+  const intro = drDejaNotificationIntro(lang, doctorName);
   const body =
     lang === 'ar'
       ? `${intro}\nهذا إشعار تجريبي للتأكد من عمل الإشعارات بشكل صحيح.\n${DR_DEJA_SIGNATURE}`

@@ -8,7 +8,15 @@ export interface DrDejaSummaryItem {
   color: string;
 }
 
-export default function DrDejaWelcomeCard({ lang, items }: { lang: Lang; items: DrDejaSummaryItem[] }) {
+export default function DrDejaWelcomeCard({
+  lang,
+  items,
+  doctorName
+}: {
+  lang: Lang;
+  items: DrDejaSummaryItem[];
+  doctorName?: string;
+}) {
   const visibleItems = items.filter((i) => i.count > 0);
   const intro = DR_DEJA_INTRO[lang];
   const allClear = DR_DEJA_ALL_CLEAR[lang];
@@ -19,7 +27,7 @@ export default function DrDejaWelcomeCard({ lang, items }: { lang: Lang; items: 
         <img src="/assets/dr-deja.png" alt="Dr. Deja" loading="lazy" />
       </div>
       <div className="dr-deja-welcome-content">
-        <div className="dr-deja-greeting">{drDejaGreeting(lang)}</div>
+        <div className="dr-deja-greeting">{drDejaGreeting(lang, doctorName)}</div>
         <div className="dr-deja-intro">{intro}</div>
 
         {visibleItems.length === 0 ? (

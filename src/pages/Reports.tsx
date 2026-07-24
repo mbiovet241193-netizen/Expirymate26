@@ -14,6 +14,7 @@ const REPORT_TYPES: { type: ReportType; ar: string; en: string; icon: string }[]
   { type: 'full', ar: 'تقرير شامل', en: 'Full Report', icon: '📋' },
   { type: 'expired', ar: 'منتجات منتهية', en: 'Expired Products', icon: '🔴' },
   { type: 'near_expiry', ar: 'قريبة من الانتهاء', en: 'Near Expiry', icon: '🔵' },
+  { type: 'expiring_soon', ar: 'تنتهي قريباً', en: 'Expiring Soon', icon: '⏰' },
   { type: 'within_shelf_life', ar: 'ضمن مدة الصلاحية', en: 'Within Shelf Life', icon: '🟢' },
   { type: 'after_half', ar: 'تجاوز نصف مدة الصلاحية', en: 'Passed Half Shelf Life', icon: '🟡' },
   { type: 'by_category', ar: 'حسب الفئة', en: 'By Category', icon: '🗂️' },
@@ -78,6 +79,7 @@ export default function Reports() {
     let list = computedBatches.filter((r) => r.product);
     if (type === 'expired') list = list.filter((r) => r.status === 'expired');
     if (type === 'near_expiry') list = list.filter((r) => r.status === 'near_expiry');
+    if (type === 'expiring_soon') list = list.filter((r) => r.status === 'near_expiry' && r.shortRule);
     if (type === 'within_shelf_life') list = list.filter((r) => r.status === 'within_shelf_life');
     if (type === 'after_half') list = list.filter((r) => r.status === 'after_half');
     if (type === 'by_category' && categoryFilter) list = list.filter((r) => r.product!.categoryId === categoryFilter);

@@ -20,6 +20,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     expiredProducts: false,
     halfLifeProducts: false,
     expiringProducts: false,
+    expiringSoon: false,
     dailyReminder: false,
     expiredCertificates: false,
     expiringCertificates: false
@@ -48,6 +49,10 @@ export async function ensureDefaultSettings(): Promise<AppSettings> {
     // Backfill notifications block for settings saved before this feature existed.
     if (!existing[0].notifications) {
       existing[0].notifications = DEFAULT_NOTIFICATION_SETTINGS;
+      await dbPut(STORES.settings, existing[0]);
+    } else if (existing[0].notifications.categories && existing[0].notifications.categories.expiringSoon === undefined) {
+      // Backfill the "Expiring Soon" category for settings saved before this feature existed.
+      existing[0].notifications.categories.expiringSoon = false;
       await dbPut(STORES.settings, existing[0]);
     }
     return existing[0];

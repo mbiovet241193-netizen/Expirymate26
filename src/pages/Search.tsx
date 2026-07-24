@@ -14,7 +14,9 @@ export default function Search() {
 
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ProductStatus | ''>('');
+  // "Expiring Soon" is a UI-level filter refinement of 'near_expiry' (short shelf-life
+  // products, <= 3 months, remaining days 1-9) - not a separate ProductStatus value.
+  const [statusFilter, setStatusFilter] = useState<ProductStatus | 'expiring_soon' | ''>('');
   const [beforeDate, setBeforeDate] = useState('');
 
   useEffect(() => {
@@ -44,7 +46,11 @@ export default function Search() {
         if (!r.product) return false;
         if (query && !r.product.name.toLowerCase().includes(query.toLowerCase())) return false;
         if (categoryFilter && r.product.categoryId !== categoryFilter) return false;
-        if (statusFilter && r.status !== statusFilter) return false;
+        if (statusFilter === 'expiring_soon') {
+          if (!(r.status === 'near_expiry' && r.shortRule)) return false;
+        } else if (statusFilter && r.status !== statusFilter) {
+          return false;
+        }
         if (beforeDate && r.batch.expiryDate > beforeDate) return false;
         return true;
       })
@@ -71,11 +77,12 @@ export default function Search() {
           </div>
           <div className="form-field">
             <label>{t('status')}</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | '')}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | 'expiring_soon' | '')}>
               <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
               <option value="within_shelf_life">{t('withinShelfLife')}</option>
               <option value="after_half">{t('afterHalf')}</option>
               <option value="near_expiry">{lang === 'ar' ? 'قريبة من الانتهاء' : 'Near Expiry'}</option>
+              <option value="expiring_soon">{t('expiringSoon')}</option>
               <option value="expired">{t('expiredProducts')}</option>
             </select>
           </div>

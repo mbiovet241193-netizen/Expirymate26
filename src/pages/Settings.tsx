@@ -51,7 +51,7 @@ export default function Settings() {
       setTestResult('denied');
       return;
     }
-    const ok = await sendTestNotification(lang);
+    const ok = await sendTestNotification(lang, settings.doctorName);
     setTestResult(ok ? 'sent' : 'denied');
   };
 
@@ -255,6 +255,14 @@ export default function Settings() {
                   onChange={(e) => updateCategory('expiringProducts', e.target.checked)}
                 />
                 {lang === 'ar' ? 'خلال 30 يومًا' : 'Expiring Within 30 Days'}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.notifications.categories.expiringSoon}
+                  onChange={(e) => updateCategory('expiringSoon', e.target.checked)}
+                />
+                {t('expiringSoon')}
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input

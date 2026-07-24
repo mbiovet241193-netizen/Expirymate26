@@ -11,38 +11,59 @@ export function getDayPeriod(date: Date = new Date()): DayPeriod {
   return 'evening';
 }
 
-const GREETINGS: Record<DayPeriod, { ar: string; en: string }> = {
-  morning: {
-    ar: 'صباح الخير.\nأتمنى لك يوم عمل موفق.',
-    en: 'Good morning.\nWishing you a productive day.'
-  },
-  afternoon: {
-    ar: 'مرحباً.\nإليك ملخص حالة الجودة اليوم.',
-    en: 'Hello.\nHere is today\u2019s quality status summary.'
-  },
-  evening: {
-    ar: 'مساء الخير.\nقبل إنهاء يوم العمل، إليك أهم الملاحظات.',
-    en: 'Good evening.\nBefore wrapping up, here are today\u2019s key notes.'
-  }
+// Opening word for each part of the day, before the Quality Doctor's name (if any) is appended.
+const GREETING_OPENERS: Record<DayPeriod, { ar: string; en: string }> = {
+  morning: { ar: 'صباح الخير', en: 'Good morning' },
+  afternoon: { ar: 'مرحباً', en: 'Hello' },
+  evening: { ar: 'مساء الخير', en: 'Good evening' }
 };
 
-const NOTIFICATION_INTROS: Record<DayPeriod, { ar: string; en: string }> = {
-  morning: {
-    ar: 'صباح الخير.\nلديك اليوم بعض العناصر التي تحتاج إلى المراجعة.',
-    en: 'Good morning.\nA few items need your review today.'
-  },
-  afternoon: {
-    ar: 'مرحباً.\nإليك أحدث تنبيهات الجودة.',
-    en: 'Hello.\nHere are the latest quality alerts.'
-  },
-  evening: {
-    ar: 'مساء الخير.\nقبل إنهاء يوم العمل، يرجى مراجعة العناصر التالية.',
-    en: 'Good evening.\nBefore ending the day, please review the following.'
-  }
+// Second line used on the Dashboard welcome card (kept separate from the notification intro,
+// which stays a single short line so notifications remain non-intrusive).
+const GREETING_OUTROS: Record<DayPeriod, { ar: string; en: string }> = {
+  morning: { ar: 'أتمنى لك يوم عمل موفق.', en: 'Wishing you a productive day.' },
+  afternoon: { ar: 'إليك ملخص حالة الجودة اليوم.', en: 'Here is today\u2019s quality status summary.' },
+  evening: { ar: 'قبل إنهاء يوم العمل، إليك أهم الملاحظات.', en: 'Before wrapping up, here are today\u2019s key notes.' }
 };
 
-export function drDejaGreeting(lang: Lang, date?: Date): string {
-  return GREETINGS[getDayPeriod(date)][lang];
+/** True if the stored Quality Doctor name already carries a title prefix ("د." or "Dr."). */
+function hasDoctorTitlePrefix(name: string): boolean {
+  const n = name.trim();
+  return n.startsWith('د.') || /^dr\.?\s/i.test(n) || /^dr\./i.test(n);
+}
+
+/**
+ * Builds the "...<name>" suffix appended to a greeting opener, honoring the stored
+ * Quality Doctor name exactly as-is when it already starts with "د." / "Dr.",
+ * and inserting a natural "يا" connector in Arabic otherwise. Returns '' when no
+ * name is set, so callers fall back to the existing generic greeting untouched.
+ */
+function greetingNameSuffix(doctorName: string | undefined | null, lang: Lang): string {
+  const name = (doctorName ?? '').trim();
+  if (!name) return '';
+  if (hasDoctorTitlePrefix(name)) return ` ${name}`;
+  return lang === 'ar' ? ` يا ${name}` : `, ${name}`;
+}
+
+/**
+ * Full two-line greeting shown on the Dashboard welcome card. Personalizes with the
+ * Quality Doctor name when available (reusing the existing "Quality Doctor Name"
+ * setting); otherwise this is identical to the previous generic greeting.
+ */
+export function drDejaGreeting(lang: Lang, doctorName?: string | null, date?: Date): string {
+  const period = getDayPeriod(date);
+  const opener = `${GREETING_OPENERS[period][lang]}${greetingNameSuffix(doctorName, lang)}.`;
+  return `${opener}\n${GREETING_OUTROS[period][lang]}`;
+}
+
+/**
+ * Short single-line greeting used to open local notifications (daily summary,
+ * expiry alerts, reminders). Personalized with the Quality Doctor name when
+ * available; otherwise identical to the previous generic notification intro.
+ */
+export function drDejaNotificationIntro(lang: Lang, doctorName?: string | null, date?: Date): string {
+  const period = getDayPeriod(date);
+  return `${GREETING_OPENERS[period][lang]}${greetingNameSuffix(doctorName, lang)}.`;
 }
 
 export const DR_DEJA_INTRO = {

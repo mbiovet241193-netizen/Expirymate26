@@ -22,7 +22,7 @@ interface Stats {
 }
 
 export default function Dashboard() {
-  const { t, lang } = useApp();
+  const { t, lang, settings } = useApp();
   const { navigate } = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [reports, setReports] = useState<SavedReport[]>([]);
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DrDejaWelcomeCard lang={lang} items={summaryItems} />
+      <DrDejaWelcomeCard lang={lang} items={summaryItems} doctorName={settings.doctorName} />
 
       <div className="stat-grid">
         <StatCard label={t('totalProducts')} value={stats.totalProducts} color="var(--primary)" icon="📦" />

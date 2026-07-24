@@ -90,6 +90,7 @@ export type ReportType =
   | 'full'
   | 'expired'
   | 'near_expiry'
+  | 'expiring_soon'
   | 'within_shelf_life'
   | 'after_half'
   | 'by_category'
@@ -112,7 +113,8 @@ export interface NotificationSettings {
   categories: {
     expiredProducts: boolean;
     halfLifeProducts: boolean;
-    expiringProducts: boolean; // within 30 days
+    expiringProducts: boolean; // within 30 days (long shelf-life products, > 3 months)
+    expiringSoon: boolean; // short shelf-life products (<= 3 months), remaining days 1-9
     dailyReminder: boolean;
     expiredCertificates: boolean;
     expiringCertificates: boolean; // within 30 days
