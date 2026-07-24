@@ -223,6 +223,15 @@ h1, h2, h3 {
   transform: scale(0.94);
 }
 
+.back-btn-arrow {
+  display: inline-block;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+[dir='rtl'] .back-btn-arrow {
+  transform: scaleX(-1);
+}
+
 .btn {
   border: none;
   border-radius: var(--md-radius-lg);
