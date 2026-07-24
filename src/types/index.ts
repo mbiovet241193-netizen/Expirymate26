@@ -2,7 +2,7 @@
 
 export type ShelfLifeUnit = 'days' | 'months' | 'years';
 
-export type ProductStatus = 'before_half' | 'after_half' | 'near_expiry' | 'expired';
+export type ProductStatus = 'within_shelf_life' | 'after_half' | 'near_expiry' | 'expired';
 
 export interface Category {
   id: string;
@@ -90,7 +90,7 @@ export type ReportType =
   | 'full'
   | 'expired'
   | 'near_expiry'
-  | 'before_half'
+  | 'within_shelf_life'
   | 'after_half'
   | 'by_category'
   | 'receiving'
@@ -147,6 +147,9 @@ export interface Employee {
   code: string;
   name: string;
   jobTitle: string;
+  healthCertExpiryDate?: string; // ISO date, optional — imported/entered health certificate expiry
+  insuranceNumber?: string; // رقم التأمين الطبي
+  mobilePhone?: string;
   createdAt: string;
   updatedAt: string;
 }

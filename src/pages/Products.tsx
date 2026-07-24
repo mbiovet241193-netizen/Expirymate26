@@ -4,6 +4,7 @@ import { CategoryRepo, ProductRepo, BatchRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, Product, ShelfLifeUnit } from '../types';
 import Modal from '../components/common/Modal';
+import Autocomplete from '../components/common/Autocomplete';
 import { useRouter } from '../router/Router';
 import { exportProductsToExcel, parseProductsExcelFile } from '../utils/productsExcel';
 
@@ -160,14 +161,13 @@ export default function Products() {
     <div>
       <div className="toolbar">
         <div className="form-field" style={{ minWidth: 220 }}>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-            <option value="">{lang === 'ar' ? 'كل الفئات' : 'All Categories'}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {lang === 'ar' ? c.nameAr || c.name : c.name}
-              </option>
-            ))}
-          </select>
+          <Autocomplete
+            value={filterCategory}
+            onChange={setFilterCategory}
+            allowEmptyOption={{ value: '', label: lang === 'ar' ? 'كل الفئات' : 'All Categories' }}
+            options={categories.map((c) => ({ value: c.id, label: lang === 'ar' ? c.nameAr || c.name : c.name }))}
+            placeholder={lang === 'ar' ? 'كل الفئات' : 'All Categories'}
+          />
         </div>
         <button className="btn btn-outline" onClick={doExportExcel} disabled={products.length === 0}>
           {t('exportExcel')}
@@ -291,13 +291,12 @@ export default function Products() {
             </div>
             <div className="form-field">
               <label>{t('category')}</label>
-              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {lang === 'ar' ? c.nameAr || c.name : c.name}
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                value={categoryId}
+                onChange={setCategoryId}
+                options={categories.map((c) => ({ value: c.id, label: lang === 'ar' ? c.nameAr || c.name : c.name }))}
+                placeholder={lang === 'ar' ? 'اختر الفئة' : 'Select category'}
+              />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'مدة الصلاحية الافتراضية' : 'Default Shelf Life'}</label>

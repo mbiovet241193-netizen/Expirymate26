@@ -1,5 +1,4 @@
-// Minimal Employee database screen for the Health Certificates module.
-// Deliberately kept small (code, name, job title only) - this is NOT an HR system.
+// Employee database screen for the Health Certificates module.
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { EmployeeRepo } from '../../db/repositories';
@@ -17,6 +16,9 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
+  const [healthCertExpiryDate, setHealthCertExpiryDate] = useState('');
+  const [insuranceNumber, setInsuranceNumber] = useState('');
+  const [mobilePhone, setMobilePhone] = useState('');
   const [importSummary, setImportSummary] = useState<{ created: number; updated: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +40,9 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     setCode('');
     setName('');
     setJobTitle('');
+    setHealthCertExpiryDate('');
+    setInsuranceNumber('');
+    setMobilePhone('');
     setShowModal(true);
   };
 
@@ -46,15 +51,26 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     setCode(e.code);
     setName(e.name);
     setJobTitle(e.jobTitle);
+    setHealthCertExpiryDate(e.healthCertExpiryDate ?? '');
+    setInsuranceNumber(e.insuranceNumber ?? '');
+    setMobilePhone(e.mobilePhone ?? '');
     setShowModal(true);
   };
 
   const save = async () => {
     if (!code.trim() || !name.trim()) return;
     const now = new Date().toISOString();
+    const common = {
+      code: code.trim(),
+      name: name.trim(),
+      jobTitle: jobTitle.trim(),
+      healthCertExpiryDate: healthCertExpiryDate || undefined,
+      insuranceNumber: insuranceNumber.trim() || undefined,
+      mobilePhone: mobilePhone.trim() || undefined
+    };
     const emp: Employee = editing
-      ? { ...editing, code: code.trim(), name: name.trim(), jobTitle: jobTitle.trim(), updatedAt: now }
-      : { id: generateId(), code: code.trim(), name: name.trim(), jobTitle: jobTitle.trim(), createdAt: now, updatedAt: now };
+      ? { ...editing, ...common, updatedAt: now }
+      : { id: generateId(), ...common, createdAt: now, updatedAt: now };
     await EmployeeRepo.save(emp);
     setShowModal(false);
     load();
@@ -76,13 +92,20 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     for (const row of rows) {
       const key = row.code.trim().toLowerCase();
       const existing = byCodeLower.get(key);
+      const common = {
+        name: row.name,
+        jobTitle: row.jobTitle,
+        healthCertExpiryDate: row.healthCertExpiryDate,
+        insuranceNumber: row.insuranceNumber,
+        mobilePhone: row.mobilePhone
+      };
       if (existing) {
-        const updatedEmp: Employee = { ...existing, name: row.name, jobTitle: row.jobTitle, updatedAt: now };
+        const updatedEmp: Employee = { ...existing, ...common, updatedAt: now };
         await EmployeeRepo.save(updatedEmp);
         byCodeLower.set(key, updatedEmp);
         updated++;
       } else {
-        const newEmp: Employee = { id: generateId(), code: row.code, name: row.name, jobTitle: row.jobTitle, createdAt: now, updatedAt: now };
+        const newEmp: Employee = { id: generateId(), code: row.code, ...common, createdAt: now, updatedAt: now };
         await EmployeeRepo.save(newEmp);
         byCodeLower.set(key, newEmp);
         created++;
@@ -126,8 +149,8 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
         <div className="card" style={{ marginBottom: 14, background: 'var(--surface-container-high)' }}>
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center', fontSize: '0.9rem' }}>
             <strong>{t('importSummary')}:</strong>
-            <span>✅ {importSummary.created} {t('importCreated')}</span>
-            <span>🔄 {importSummary.updated} {t('importUpdated')}</span>
+            <span>✅ {importSummary.created} {t('importEmployeeCreated')}</span>
+            <span>🔄 {importSummary.updated} {t('importEmployeeUpdated')}</span>
             <button className="btn btn-outline btn-sm" onClick={() => setImportSummary(null)}>
               {t('cancel')}
             </button>
@@ -159,6 +182,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                   <th>{lang === 'ar' ? 'الكود' : 'Code'}</th>
                   <th>{lang === 'ar' ? 'الاسم' : 'Name'}</th>
                   <th>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</th>
+                  <th>{lang === 'ar' ? 'رقم الموبايل' : 'Mobile Phone'}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -168,6 +192,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                     <td>{e.code}</td>
                     <td>{e.name}</td>
                     <td>{e.jobTitle}</td>
+                    <td>{e.mobilePhone ?? '—'}</td>
                     <td style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-outline btn-sm" onClick={() => openEdit(e)}>
                         {t('edit')}
@@ -196,6 +221,12 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                   <span>{lang === 'ar' ? 'الوظيفة' : 'Job Title'}</span>
                   <span>{e.jobTitle}</span>
                 </div>
+                {e.mobilePhone && (
+                  <div className="record-card-row">
+                    <span>{lang === 'ar' ? 'الموبايل' : 'Mobile'}</span>
+                    <span>{e.mobilePhone}</span>
+                  </div>
+                )}
                 <div className="record-card-actions">
                   <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => openEdit(e)}>
                     {t('edit')}
@@ -224,6 +255,18 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</label>
               <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'تاريخ انتهاء الشهادة الصحية' : 'Health Certificate Expiry Date'}</label>
+              <input type="date" value={healthCertExpiryDate} onChange={(e) => setHealthCertExpiryDate(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'رقم التأمين الطبي' : 'Medical Insurance Number'}</label>
+              <input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'رقم الموبايل' : 'Mobile Phone'}</label>
+              <input value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>

@@ -57,21 +57,31 @@ export const DR_DEJA_ALL_CLEAR = {
 
 export const DR_DEJA_SIGNATURE = '\u2014 Dr. Deja';
 
-/** Builds a grouped notification body line for a given count + category, in the requested language. */
+/**
+ * Builds a grouped notification body line for a given count + category, in the requested language.
+ * For 'expiringProducts', pass `shortRule = true` when the batches being reported are short
+ * shelf-life (<= 3 months) products, to use the "Expiring Soon" wording instead of "Within 30 Days".
+ */
 export function notificationLine(
   category: 'expiredProducts' | 'expiringProducts' | 'halfLifeProducts' | 'expiredCertificates' | 'expiringCertificates',
   count: number,
-  lang: Lang
+  lang: Lang,
+  shortRule: boolean = false
 ): string {
   const lines: Record<typeof category, { ar: (n: number) => string; en: (n: number) => string }> = {
     expiredProducts: {
       ar: (n: number) => `يوجد ${n} منتجات منتهية الصلاحية تحتاج إلى مراجعة.`,
       en: (n: number) => `${n} product(s) have expired and need review.`
     },
-    expiringProducts: {
-      ar: (n: number) => `يوجد ${n} منتجات ستنتهي خلال 30 يوماً.`,
-      en: (n: number) => `${n} product(s) will expire within 30 days.`
-    },
+    expiringProducts: shortRule
+      ? {
+          ar: (n: number) => `يوجد ${n} منتجات ستنتهي قريباً.`,
+          en: (n: number) => `${n} product(s) are expiring soon.`
+        }
+      : {
+          ar: (n: number) => `يوجد ${n} منتجات ستنتهي خلال 30 يوماً.`,
+          en: (n: number) => `${n} product(s) will expire within 30 days.`
+        },
     halfLifeProducts: {
       ar: (n: number) => `يوجد ${n} منتجات تجاوزت نصف الصلاحية.`,
       en: (n: number) => `${n} product(s) have passed half shelf life.`

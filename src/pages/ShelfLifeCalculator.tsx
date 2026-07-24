@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Product, ShelfLifeUnit } from '../types';
 import { ProductRepo } from '../db/repositories';
-import { calculateExpiry, computeBatchStatus } from '../engine/shelfLifeEngine';
+import { calculateExpiry, computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
+import Autocomplete from '../components/common/Autocomplete';
 
 export default function ShelfLifeCalculator() {
   const { t, lang } = useApp();
@@ -30,7 +31,7 @@ export default function ShelfLifeCalculator() {
   const result = useMemo(() => {
     if (!productionDate || !value) return null;
     const calc = calculateExpiry({ productionDate, shelfLifeValue: value, shelfLifeUnit: unit });
-    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate);
+    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate, value, unit);
     return { ...calc, ...status };
   }, [productionDate, value, unit]);
 
@@ -41,14 +42,13 @@ export default function ShelfLifeCalculator() {
         <div className="form-grid">
           <div className="form-field" style={{ gridColumn: '1 / -1' }}>
             <label>{lang === 'ar' ? 'اختر منتجًا (اختياري)' : 'Select a Product (optional)'}</label>
-            <select value={selectedProductId} onChange={(e) => onProductSelect(e.target.value)}>
-              <option value="">{lang === 'ar' ? '— إدخال يدوي —' : '— Manual Entry —'}</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <Autocomplete
+              value={selectedProductId}
+              onChange={onProductSelect}
+              allowEmptyOption={{ value: '', label: lang === 'ar' ? '— إدخال يدوي —' : '— Manual Entry —' }}
+              options={products.map((p) => ({ value: p.id, label: p.name }))}
+              placeholder={lang === 'ar' ? '— إدخال يدوي —' : '— Manual Entry —'}
+            />
           </div>
           <div className="form-field">
             <label>{t('productionDate')}</label>
@@ -91,7 +91,7 @@ export default function ShelfLifeCalculator() {
             <div className="form-field">
               <label>{t('status')}</label>
               <div style={{ marginTop: 4 }}>
-                <StatusBadge status={result.status} />
+                <StatusBadge status={result.status} shortRule={isShortShelfLife(value, unit)} />
               </div>
             </div>
           </div>

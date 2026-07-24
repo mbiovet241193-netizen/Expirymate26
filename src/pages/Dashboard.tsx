@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRouter, type Route } from '../router/Router';
 import { BatchRepo, ProductRepo, NonConformingRepo, ReportRepo, EmployeeRepo, HealthCertificateRepo, ReceivingRepo } from '../db/repositories';
-import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
 import type { Batch, SavedReport } from '../types';
 import DrDejaWelcomeCard, { type DrDejaSummaryItem } from '../components/assistant/DrDejaWelcomeCard';
+import StatCard from '../components/common/StatCard';
 
 interface Stats {
   totalProducts: number;
   totalBatches: number;
   expired: number;
   within30: number;
+  expiringSoon: number;
   afterHalf: number;
-  beforeHalf: number;
   nonConforming: number;
   expiredCerts: number;
   expiringCerts: number;
@@ -40,15 +41,18 @@ export default function Dashboard() {
 
       let expired = 0;
       let within30 = 0;
+      let expiringSoon = 0;
       let afterHalf = 0;
-      let beforeHalf = 0;
 
       batches.forEach((b: Batch) => {
-        const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+        const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
         if (status === 'expired') expired++;
-        else if (status === 'near_expiry') within30++;
-        else if (status === 'after_half') afterHalf++;
-        else beforeHalf++;
+        else if (status === 'near_expiry') {
+          if (isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)) expiringSoon++;
+          else within30++;
+        } else if (status === 'after_half') afterHalf++;
+        // within_shelf_life batches are intentionally not counted here - Dashboard
+        // summary cards only surface items requiring attention.
       });
 
       const employeeIds = new Set(employees.map((e) => e.id));
@@ -69,8 +73,8 @@ export default function Dashboard() {
         totalBatches: batches.length,
         expired,
         within30,
+        expiringSoon,
         afterHalf,
-        beforeHalf,
         nonConforming: nc.length,
         expiredCerts,
         expiringCerts,
@@ -105,6 +109,7 @@ export default function Dashboard() {
   const summaryItems: DrDejaSummaryItem[] = [
     { label: t('expiredProducts'), count: stats.expired, color: 'var(--danger)' },
     { label: t('within30Days'), count: stats.within30, color: 'var(--info)' },
+    { label: t('expiringSoon'), count: stats.expiringSoon, color: 'var(--info)' },
     { label: t('afterHalf'), count: stats.afterHalf, color: 'var(--warning)' },
     { label: lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates', count: stats.expiredCerts, color: 'var(--danger)' },
     {
@@ -124,8 +129,8 @@ export default function Dashboard() {
         <StatCard label={t('totalBatches')} value={stats.totalBatches} color="var(--info)" icon="⏳" />
         <StatCard label={t('expiredProducts')} value={stats.expired} color="var(--danger)" icon="⛔" />
         <StatCard label={t('within30Days')} value={stats.within30} color="var(--info)" icon="⏰" />
+        <StatCard label={t('expiringSoon')} value={stats.expiringSoon} color="var(--info)" icon="⏰" />
         <StatCard label={t('afterHalf')} value={stats.afterHalf} color="var(--warning)" icon="⚠️" />
-        <StatCard label={t('beforeHalf')} value={stats.beforeHalf} color="var(--primary)" icon="✅" />
         <StatCard label={t('nonConformingCount')} value={stats.nonConforming} color="var(--danger)" icon="🚫" />
         <StatCard
           label={lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates'}
@@ -211,16 +216,4 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: string }) {
-  return (
-    <div className="stat-card" style={{ borderInlineStartColor: color, ['--stat-color' as string]: color }}>
-      <div className="stat-card-icon">{icon}</div>
-      <div className="stat-card-body">
-        <div className="stat-value" style={{ color }}>
-          {value}
-        </div>
-        <div className="stat-label">{label}</div>
-      </div>
-    </div>
-  );
-}
+

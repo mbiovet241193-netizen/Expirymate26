@@ -4,6 +4,7 @@ import { NonConformingRepo, ReportRepo, ProductRepo, CategoryRepo } from '../db/
 import { generateId } from '../db/db';
 import type { Category, NonConformingDecision, NonConformingRecord, Product } from '../types';
 import Modal from '../components/common/Modal';
+import Autocomplete from '../components/common/Autocomplete';
 import { exportToCsv } from '../utils/export';
 
 const DECISIONS: NonConformingDecision[] = ['disposal', 'returned', 'rejected', 'pending'];
@@ -385,12 +386,13 @@ export default function NonConforming() {
           <div className="form-grid">
             <div className="form-field">
               <label>{t('name')}</label>
-              <input value={productName} onChange={(e) => setProductName(e.target.value)} list="nc-products-list" />
-              <datalist id="nc-products-list">
-                {products.map((p) => (
-                  <option key={p.id} value={p.name} />
-                ))}
-              </datalist>
+              <Autocomplete
+                freeText
+                value={productName}
+                onChange={setProductName}
+                options={products.map((p) => ({ value: p.id, label: p.name }))}
+                placeholder={t('name')}
+              />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'التاريخ' : 'Date'}</label>
@@ -431,14 +433,13 @@ export default function NonConforming() {
           <div className="form-grid">
             <div className="form-field">
               <label>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
-              <select value={setupSite} onChange={(e) => setSetupSite(e.target.value)}>
-                <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
-                {settings.siteNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                value={setupSite}
+                onChange={setSetupSite}
+                allowEmptyOption={{ value: '', label: lang === 'ar' ? '— اختر —' : '— Select —' }}
+                options={settings.siteNames.map((n) => ({ value: n, label: n }))}
+                placeholder={lang === 'ar' ? '— اختر —' : '— Select —'}
+              />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'طبيب الجودة' : 'Quality Doctor'}</label>

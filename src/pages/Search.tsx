@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BatchRepo, CategoryRepo, ProductRepo } from '../db/repositories';
 import type { Batch, Category, Product, ProductStatus } from '../types';
-import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
+import Autocomplete from '../components/common/Autocomplete';
 
 export default function Search() {
   const { t, lang } = useApp();
@@ -35,8 +36,9 @@ export default function Search() {
     return batches
       .map((b) => {
         const product = productMap.get(b.productId);
-        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
-        return { batch: b, product, ...computed };
+        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
+        const shortRule = isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit);
+        return { batch: b, product, shortRule, ...computed };
       })
       .filter((r) => {
         if (!r.product) return false;
@@ -59,22 +61,21 @@ export default function Search() {
           </div>
           <div className="form-field">
             <label>{t('category')}</label>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {catName(c.id)}
-                </option>
-              ))}
-            </select>
+            <Autocomplete
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              allowEmptyOption={{ value: '', label: lang === 'ar' ? 'الكل' : 'All' }}
+              options={categories.map((c) => ({ value: c.id, label: catName(c.id) }))}
+              placeholder={lang === 'ar' ? 'الكل' : 'All'}
+            />
           </div>
           <div className="form-field">
             <label>{t('status')}</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | '')}>
               <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
-              <option value="before_half">{t('beforeHalf')}</option>
+              <option value="within_shelf_life">{t('withinShelfLife')}</option>
               <option value="after_half">{t('afterHalf')}</option>
-              <option value="near_expiry">{t('within30Days')}</option>
+              <option value="near_expiry">{lang === 'ar' ? 'قريبة من الانتهاء' : 'Near Expiry'}</option>
               <option value="expired">{t('expiredProducts')}</option>
             </select>
           </div>
@@ -104,7 +105,7 @@ export default function Search() {
                 </tr>
               </thead>
               <tbody>
-                {results.map(({ batch, product, remainingDays, status }) => (
+                {results.map(({ batch, product, remainingDays, status, shortRule }) => (
                   <tr key={batch.id}>
                     <td>{product?.name}</td>
                     <td>{catName(product?.categoryId ?? '')}</td>
@@ -112,7 +113,7 @@ export default function Search() {
                     <td>{batch.expiryDate}</td>
                     <td>{remainingDays}</td>
                     <td>
-                      <StatusBadge status={status} />
+                      <StatusBadge status={status} shortRule={shortRule} />
                     </td>
                   </tr>
                 ))}
@@ -121,11 +122,11 @@ export default function Search() {
           </div>
 
           <div className="mobile-cards">
-            {results.map(({ batch, product, remainingDays, status }) => (
+            {results.map(({ batch, product, remainingDays, status, shortRule }) => (
               <div className="record-card" key={batch.id}>
                 <div className="record-card-header">
                   <div className="record-card-title">{product?.name}</div>
-                  <StatusBadge status={status} />
+                  <StatusBadge status={status} shortRule={shortRule} />
                 </div>
                 <div className="record-card-row">
                   <span>{t('category')}</span>

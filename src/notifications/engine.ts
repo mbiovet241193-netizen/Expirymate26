@@ -2,7 +2,7 @@
 // polling). Triggered on app open / tab becoming visible, and best-effort via
 // Periodic Background Sync where the browser supports it (see sw.js).
 import { BatchRepo, ProductRepo, EmployeeRepo, HealthCertificateRepo, NotificationLogRepo } from '../db/repositories';
-import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
 import { notificationLine, DAILY_REMINDER_LINE, getDayPeriod, DR_DEJA_SIGNATURE } from '../assistant/messages';
 import type { AppSettings } from '../types';
@@ -48,15 +48,19 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
     const [products, batches] = await Promise.all([ProductRepo.all(), BatchRepo.all()]);
     const productById = new Map(products.map((p) => [p.id, p]));
     let expiredCount = 0;
-    let expiringCount = 0;
+    let expiringSoonCount = 0; // near_expiry for short shelf-life products (<= 3 months)
+    let within30Count = 0; // near_expiry for long shelf-life products (> 3 months)
     let halfLifeCount = 0;
     for (const b of batches) {
       if (!productById.has(b.productId)) continue;
-      const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+      const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
       if (status === 'expired') expiredCount++;
-      else if (status === 'near_expiry') expiringCount++;
-      else if (status === 'after_half') halfLifeCount++;
+      else if (status === 'near_expiry') {
+        if (isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)) expiringSoonCount++;
+        else within30Count++;
+      } else if (status === 'after_half') halfLifeCount++;
     }
+    const expiringCount = expiringSoonCount + within30Count;
 
     if (n.categories.expiredProducts && expiredCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredProducts'))) {
       await showNotification(
@@ -68,9 +72,14 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
       await NotificationLogRepo.markSentToday('expiredProducts');
     }
     if (n.categories.expiringProducts && expiringCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringProducts'))) {
+      // Build one line per shelf-life type present, so the message stays accurate when both exist.
+      const expiringLines = [
+        within30Count > 0 ? notificationLine('expiringProducts', within30Count, lang, false) : null,
+        expiringSoonCount > 0 ? notificationLine('expiringProducts', expiringSoonCount, lang, true) : null
+      ].filter((line): line is string => Boolean(line));
       await showNotification(
         'ExpiryMate — Dr. Deja',
-        `${intro}\n${notificationLine('expiringProducts', expiringCount, lang)}\n${DR_DEJA_SIGNATURE}`,
+        `${intro}\n${expiringLines.join('\n')}\n${DR_DEJA_SIGNATURE}`,
         'batches',
         { status: 'near_expiry' }
       );

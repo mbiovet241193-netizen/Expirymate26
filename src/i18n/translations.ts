@@ -20,9 +20,10 @@ export const translations = {
     totalProducts: 'إجمالي المنتجات',
     totalBatches: 'إجمالي التشغيلات',
     expiredProducts: 'منتجات منتهية',
-    within30Days: 'خلال 30 يوم',
-    afterHalf: 'بعد نصف الصلاحية',
-    beforeHalf: 'قبل نصف الصلاحية',
+    within30Days: 'ستنتهي خلال 30 يوماً',
+    expiringSoon: 'تنتهي قريباً',
+    afterHalf: 'تجاوز نصف مدة الصلاحية',
+    withinShelfLife: 'ضمن مدة الصلاحية',
     nonConformingCount: 'غير مطابقة',
     latestReports: 'أحدث التقارير',
     addCategory: 'إضافة فئة',
@@ -61,7 +62,9 @@ export const translations = {
     importSummary: 'ملخص الاستيراد',
     importCreated: 'منتج جديد تمت إضافته',
     importUpdated: 'منتج تم تحديثه',
-    importSkipped: 'صف تم تجاهله'
+    importSkipped: 'صف تم تجاهله',
+    importEmployeeCreated: 'موظف جديد تمت إضافته',
+    importEmployeeUpdated: 'موظف تم تحديثه'
   },
   en: {
     appName: 'ExpiryMate',
@@ -82,9 +85,10 @@ export const translations = {
     totalProducts: 'Total Products',
     totalBatches: 'Total Batches',
     expiredProducts: 'Expired Products',
-    within30Days: 'Within 30 Days',
-    afterHalf: 'After Half Shelf-Life',
-    beforeHalf: 'Before Half Shelf-Life',
+    within30Days: 'Will Expire Within 30 Days',
+    expiringSoon: 'Expiring Soon',
+    afterHalf: 'Passed Half Shelf Life',
+    withinShelfLife: 'Within Shelf Life',
     nonConformingCount: 'Non-Conforming',
     latestReports: 'Latest Reports',
     addCategory: 'Add Category',
@@ -123,7 +127,9 @@ export const translations = {
     importSummary: 'Import Summary',
     importCreated: 'products created',
     importUpdated: 'products updated',
-    importSkipped: 'rows skipped'
+    importSkipped: 'rows skipped',
+    importEmployeeCreated: 'employees created',
+    importEmployeeUpdated: 'employees updated'
   }
 } as const;
 

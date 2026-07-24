@@ -459,6 +459,68 @@ table.data-table tr:hover td {
   flex-wrap: wrap;
 }
 
+.autocomplete {
+  position: relative;
+  width: 100%;
+}
+.autocomplete input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.autocomplete-list {
+  position: absolute;
+  z-index: 40;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface-container);
+  border: 1.5px solid var(--outline);
+  border-radius: var(--md-radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+}
+.autocomplete-option {
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.autocomplete-option-label {
+  font-size: var(--fs-body);
+  color: var(--on-surface);
+}
+.autocomplete-option-sublabel {
+  font-size: var(--fs-body-sm);
+  color: var(--on-surface-variant);
+}
+.autocomplete-option.is-highlighted,
+.autocomplete-option:hover {
+  background: var(--surface-container-high);
+}
+.autocomplete-option.is-selected .autocomplete-option-label {
+  color: var(--primary);
+  font-weight: 700;
+}
+.autocomplete-empty {
+  padding: 10px;
+  font-size: var(--fs-body-sm);
+  color: var(--on-surface-variant);
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .autocomplete-list {
+    max-height: 45vh;
+  }
+  .autocomplete-option {
+    padding: 12px 10px;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

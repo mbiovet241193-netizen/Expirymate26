@@ -133,11 +133,23 @@ export interface BatchStatusResult {
   status: ProductStatus;
 }
 
+/**
+ * Determines whether a product's final warning window (before expiry) uses the
+ * short-shelf-life rule (Remaining Days 1-9 => "Expiring Soon") or the standard
+ * long-shelf-life rule (Remaining Days <= 30 => "Will Expire Within 30 Days").
+ * Reuses the same <= 3 months threshold already established in calculateExpiry().
+ */
+export function isShortShelfLife(shelfLifeValue: number, shelfLifeUnit: ShelfLifeUnit): boolean {
+  return shelfLifeInMonths(shelfLifeValue, shelfLifeUnit) <= 3;
+}
+
 /** Computes live status of a batch (remaining days, consumption %, and color-coded status). */
 export function computeBatchStatus(
   productionDate: string,
   expiryDate: string,
   halfLifeDate: string,
+  shelfLifeValue: number,
+  shelfLifeUnit: ShelfLifeUnit,
   today: Date = new Date()
 ): BatchStatusResult {
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -152,38 +164,51 @@ export function computeBatchStatus(
   const elapsedDays = Math.round((todayMid.getTime() - prod.getTime()) / MS_PER_DAY);
   const consumptionPercent = Math.min(100, Math.max(0, (elapsedDays / totalLifeDays) * 100));
 
+  const shortRule = isShortShelfLife(shelfLifeValue, shelfLifeUnit);
+  // Final warning window: standard products warn at <= 30 days remaining;
+  // short shelf-life products only warn once <= 9 days remain (see "Expiring Soon").
+  const inFinalWarningWindow = shortRule ? remainingDays <= 9 : remainingDays <= 30;
+
   let status: ProductStatus;
-  if (remainingDays < 0) {
+  if (remainingDays < 1) {
     status = 'expired';
-  } else if (remainingDays <= 30) {
+  } else if (inFinalWarningWindow) {
     status = 'near_expiry';
   } else if (todayMid.getTime() > half.getTime()) {
     status = 'after_half';
   } else {
-    status = 'before_half';
+    status = 'within_shelf_life';
   }
 
   return { remainingDays, remainingDaysToHalf, consumptionPercent, status };
 }
 
 export const STATUS_COLORS: Record<ProductStatus, string> = {
-  before_half: '#2E7D5B', // green
+  within_shelf_life: '#2E7D5B', // green
   after_half: '#C9A400', // yellow/amber
   near_expiry: '#1565C0', // blue
   expired: '#C62828' // red
 };
 
+/** near_expiry label depends on shelf-life length: long products get "Will Expire Within 30 Days", short products get "Expiring Soon". */
+export function nearExpiryLabel(shortRule: boolean, lang: 'ar' | 'en'): string {
+  if (shortRule) {
+    return lang === 'ar' ? 'تنتهي قريبًا' : 'Expiring Soon';
+  }
+  return lang === 'ar' ? 'ستنتهي خلال 30 يومًا' : 'Will Expire Within 30 Days';
+}
+
 export const STATUS_LABELS_EN: Record<ProductStatus, string> = {
-  before_half: 'Before Half Shelf-Life',
-  after_half: 'After Half Shelf-Life',
-  near_expiry: '30 Days or Less',
+  within_shelf_life: 'Within Shelf Life',
+  after_half: 'Passed Half Shelf Life',
+  near_expiry: 'Will Expire Within 30 Days',
   expired: 'Expired'
 };
 
 export const STATUS_LABELS_AR: Record<ProductStatus, string> = {
-  before_half: 'قبل نصف مدة الصلاحية',
-  after_half: 'بعد نصف مدة الصلاحية',
-  near_expiry: 'أقل من 30 يوم',
+  within_shelf_life: 'ضمن مدة الصلاحية',
+  after_half: 'تجاوز نصف مدة الصلاحية',
+  near_expiry: 'ستنتهي خلال 30 يومًا',
   expired: 'منتهي الصلاحية'
 };
 

@@ -3,18 +3,19 @@ import { useApp } from '../context/AppContext';
 import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Batch, Category, Product, ReceivingSession, ReportType } from '../types';
-import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import { exportToCsv } from '../utils/export';
 import Modal from '../components/common/Modal';
+import Autocomplete from '../components/common/Autocomplete';
 import { useRouter } from '../router/Router';
 
 const REPORT_TYPES: { type: ReportType; ar: string; en: string; icon: string }[] = [
   { type: 'full', ar: 'تقرير شامل', en: 'Full Report', icon: '📋' },
   { type: 'expired', ar: 'منتجات منتهية', en: 'Expired Products', icon: '🔴' },
-  { type: 'near_expiry', ar: 'خلال 30 يوم', en: 'Within 30 Days', icon: '🔵' },
-  { type: 'before_half', ar: 'قبل نصف الصلاحية', en: 'Before Half Shelf-Life', icon: '🟢' },
-  { type: 'after_half', ar: 'بعد نصف الصلاحية', en: 'After Half Shelf-Life', icon: '🟡' },
+  { type: 'near_expiry', ar: 'قريبة من الانتهاء', en: 'Near Expiry', icon: '🔵' },
+  { type: 'within_shelf_life', ar: 'ضمن مدة الصلاحية', en: 'Within Shelf Life', icon: '🟢' },
+  { type: 'after_half', ar: 'تجاوز نصف مدة الصلاحية', en: 'Passed Half Shelf Life', icon: '🟡' },
   { type: 'by_category', ar: 'حسب الفئة', en: 'By Category', icon: '🗂️' },
   { type: 'monthly_receiving', ar: 'تقرير الاستلام الشهري', en: 'Monthly Receiving Report', icon: '🚚' },
   { type: 'health_certificates', ar: 'تقرير الشهادات الصحية', en: 'Health Certificates Report', icon: '🩺' }
@@ -52,7 +53,12 @@ export default function Reports() {
   };
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  const computedBatches = batches.map((b) => ({ batch: b, product: productMap.get(b.productId), ...computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate) }));
+  const computedBatches = batches.map((b) => ({
+    batch: b,
+    product: productMap.get(b.productId),
+    shortRule: isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit),
+    ...computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit)
+  }));
 
   const monthlyReceivingRows = (dateStr: string) => {
     const ref = new Date(dateStr);
@@ -72,7 +78,7 @@ export default function Reports() {
     let list = computedBatches.filter((r) => r.product);
     if (type === 'expired') list = list.filter((r) => r.status === 'expired');
     if (type === 'near_expiry') list = list.filter((r) => r.status === 'near_expiry');
-    if (type === 'before_half') list = list.filter((r) => r.status === 'before_half');
+    if (type === 'within_shelf_life') list = list.filter((r) => r.status === 'within_shelf_life');
     if (type === 'after_half') list = list.filter((r) => r.status === 'after_half');
     if (type === 'by_category' && categoryFilter) list = list.filter((r) => r.product!.categoryId === categoryFilter);
     return list.sort((a, b) => a.batch.expiryDate.localeCompare(b.batch.expiryDate));
@@ -232,7 +238,7 @@ export default function Reports() {
                         <td>{row.productionDate}</td>
                         <td>{row.expiryDate}</td>
                         <td>
-                          <StatusBadge status={row.status} />
+                          <StatusBadge status={row.status} shortRule={isShortShelfLife(row.shelfLifeValue, row.shelfLifeUnit)} />
                         </td>
                         <td>{session.vehicleTemp}</td>
                       </tr>
@@ -247,7 +253,7 @@ export default function Reports() {
                       <div className="record-card-title">
                         {i + 1}. {row.productName}
                       </div>
-                      <StatusBadge status={row.status} />
+                      <StatusBadge status={row.status} shortRule={isShortShelfLife(row.shelfLifeValue, row.shelfLifeUnit)} />
                     </div>
                     <div className="record-card-row">
                       <span>{lang === 'ar' ? 'الموقع' : 'Site'}</span>
@@ -341,7 +347,7 @@ export default function Reports() {
                     <td>{r.remainingDays}</td>
                     <td>{r.consumptionPercent.toFixed(0)}%</td>
                     <td>
-                      <StatusBadge status={r.status} />
+                      <StatusBadge status={r.status} shortRule={r.shortRule} />
                     </td>
                   </tr>
                 ))}
@@ -356,7 +362,7 @@ export default function Reports() {
                   <div className="record-card-title">
                     {i + 1}. {r.product!.name}
                   </div>
-                  <StatusBadge status={r.status} />
+                  <StatusBadge status={r.status} shortRule={r.shortRule} />
                 </div>
                 <div className="record-card-row">
                   <span>{t('category')}</span>
@@ -409,14 +415,13 @@ export default function Reports() {
         <div className="card" style={{ maxWidth: 320, marginTop: 10 }}>
           <div className="form-field">
             <label>{lang === 'ar' ? 'فلترة "حسب الفئة" على' : '"By Category" filters to'}</label>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="">{lang === 'ar' ? 'كل الفئات' : 'All Categories'}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {catName(c.id)}
-                </option>
-              ))}
-            </select>
+            <Autocomplete
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              allowEmptyOption={{ value: '', label: lang === 'ar' ? 'كل الفئات' : 'All Categories' }}
+              options={categories.map((c) => ({ value: c.id, label: catName(c.id) }))}
+              placeholder={lang === 'ar' ? 'كل الفئات' : 'All Categories'}
+            />
           </div>
         </div>
       )}
@@ -426,14 +431,13 @@ export default function Reports() {
           <div className="form-grid">
             <div className="form-field">
               <label>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
-              <select value={setupSite} onChange={(e) => setSetupSite(e.target.value)}>
-                <option value="">{lang === 'ar' ? '— اختر —' : '— Select —'}</option>
-                {settings.siteNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                value={setupSite}
+                onChange={setSetupSite}
+                allowEmptyOption={{ value: '', label: lang === 'ar' ? '— اختر —' : '— Select —' }}
+                options={settings.siteNames.map((n) => ({ value: n, label: n }))}
+                placeholder={lang === 'ar' ? '— اختر —' : '— Select —'}
+              />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'طبيب الجودة' : 'Quality Doctor'}</label>

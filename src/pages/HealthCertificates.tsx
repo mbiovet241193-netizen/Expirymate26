@@ -9,6 +9,8 @@ import Modal from '../components/common/Modal';
 import { useRouter } from '../router/Router';
 import EmployeesManager from '../components/healthCertificates/EmployeesManager';
 import HealthCertificateReport from '../components/healthCertificates/HealthCertificateReport';
+import Autocomplete from '../components/common/Autocomplete';
+import StatCard from '../components/common/StatCard';
 
 export type ReportScope = 'all' | 'valid' | 'near_expiry' | 'expired';
 export type ReportFormat = 'data' | 'images';
@@ -172,17 +174,23 @@ export default function HealthCertificates() {
 
   return (
     <div>
+      <div className="stat-grid" style={{ marginBottom: 14 }}>
+        <StatCard
+          label={lang === 'ar' ? 'إجمالي الموظفين' : 'Total Employees'}
+          value={employees.length}
+          color="#2e7d5b"
+          icon="👥"
+        />
+      </div>
       <div className="toolbar">
         <div className="form-field" style={{ minWidth: 200, marginBottom: 0 }}>
           <label>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
-          <select value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)}>
-            {settings.siteNames.length === 0 && <option value="">{lang === 'ar' ? 'لا توجد مواقع' : 'No sites'}</option>}
-            {settings.siteNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <Autocomplete
+            value={siteFilter}
+            onChange={setSiteFilter}
+            options={settings.siteNames.map((n) => ({ value: n, label: n }))}
+            placeholder={lang === 'ar' ? 'لا توجد مواقع' : 'No sites'}
+          />
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline" onClick={() => setShowEmployeesManager(true)}>
@@ -321,12 +329,13 @@ export default function HealthCertificates() {
           <div className="form-grid">
             <div className="form-field">
               <label>{lang === 'ar' ? 'كود الموظف' : 'Employee Code'}</label>
-              <input list="employee-codes-list" value={employeeCodeInput} onChange={(e) => setEmployeeCodeInput(e.target.value)} />
-              <datalist id="employee-codes-list">
-                {employees.map((e) => (
-                  <option key={e.id} value={e.code} />
-                ))}
-              </datalist>
+              <Autocomplete
+                freeText
+                value={employeeCodeInput}
+                onChange={setEmployeeCodeInput}
+                options={employees.map((e) => ({ value: e.code, label: e.code, sublabel: e.name }))}
+                placeholder={lang === 'ar' ? 'اكتب كود أو اسم الموظف' : 'Type employee code or name'}
+              />
               {!matchedEmployee && employeeCodeInput.trim() && (
                 <div style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>
                   {lang === 'ar' ? 'كود غير موجود - أضِفه أولًا من "إدارة الموظفين".' : 'Code not found - add it first via "Manage Employees".'}

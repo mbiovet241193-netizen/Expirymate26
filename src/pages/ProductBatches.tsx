@@ -8,11 +8,18 @@ import { useRouter } from '../router/Router';
 import { BatchRepo, ProductRepo, CategoryRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Batch, Category, Product, ProductStatus } from '../types';
-import { calculateExpiry, computeBatchStatus, STATUS_LABELS_AR, STATUS_LABELS_EN } from '../engine/shelfLifeEngine';
+import {
+  calculateExpiry,
+  computeBatchStatus,
+  isShortShelfLife,
+  STATUS_LABELS_AR,
+  STATUS_LABELS_EN
+} from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
+import Autocomplete from '../components/common/Autocomplete';
 
-const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'before_half', 'after_half'];
+const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'within_shelf_life', 'after_half'];
 
 export default function ProductBatches() {
   const { t, lang } = useApp();
@@ -61,7 +68,9 @@ export default function ProductBatches() {
       list = list.filter((b) => productById.get(b.productId)?.categoryId === categoryFilter);
     }
     if (statusFilter) {
-      list = list.filter((b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate).status === statusFilter);
+      list = list.filter(
+        (b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit).status === statusFilter
+      );
     }
 
     // FEFO: First Expired First Out -> sort ascending by expiry date (default, always on)
@@ -126,7 +135,16 @@ export default function ProductBatches() {
         })
       : null;
 
-  const statusLabel = (s: ProductStatus) => (lang === 'ar' ? STATUS_LABELS_AR[s] : STATUS_LABELS_EN[s]);
+  // Generic label for the filter dropdown (near_expiry covers both "Will Expire Within 30 Days"
+  // and "Expiring Soon" batches, so the filter option itself uses a neutral wording).
+  const statusLabel = (s: ProductStatus) =>
+    s === 'near_expiry'
+      ? lang === 'ar'
+        ? 'قريبة من الانتهاء'
+        : 'Near Expiry'
+      : lang === 'ar'
+      ? STATUS_LABELS_AR[s]
+      : STATUS_LABELS_EN[s];
 
   return (
     <div>
@@ -156,14 +174,13 @@ export default function ProductBatches() {
             </div>
             <div className="form-field">
               <label>{t('category')}</label>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="">{lang === 'ar' ? 'كل الفئات' : 'All Categories'}</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {lang === 'ar' ? c.nameAr || c.name : c.name}
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                allowEmptyOption={{ value: '', label: lang === 'ar' ? 'كل الفئات' : 'All Categories' }}
+                options={categories.map((c) => ({ value: c.id, label: lang === 'ar' ? c.nameAr || c.name : c.name }))}
+                placeholder={lang === 'ar' ? 'كل الفئات' : 'All Categories'}
+              />
             </div>
             <div className="form-field">
               <label>{t('status')}</label>
@@ -206,7 +223,9 @@ export default function ProductBatches() {
                   const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                     b.productionDate,
                     b.expiryDate,
-                    b.halfLifeDate
+                    b.halfLifeDate,
+                    b.shelfLifeValue,
+                    b.shelfLifeUnit
                   );
                   return (
                     <tr key={b.id}>
@@ -217,7 +236,7 @@ export default function ProductBatches() {
                       <td>{remainingDays}</td>
                       <td>{consumptionPercent.toFixed(0)}%</td>
                       <td>
-                        <StatusBadge status={status} />
+                        <StatusBadge status={status} shortRule={isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)} />
                       </td>
                       <td style={{ display: 'flex', gap: 8 }}>
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(b)}>
@@ -240,13 +259,15 @@ export default function ProductBatches() {
               const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                 b.productionDate,
                 b.expiryDate,
-                b.halfLifeDate
+                b.halfLifeDate,
+                b.shelfLifeValue,
+                b.shelfLifeUnit
               );
               return (
                 <div className="expiry-card" key={b.id}>
                   <div className="expiry-card-header">
                     <div className="expiry-card-title">{productIdFilter ? productName(productIdFilter) : productName(b.productId)}</div>
-                    <StatusBadge status={status} />
+                    <StatusBadge status={status} shortRule={isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)} />
                   </div>
                   <div className="expiry-card-row">
                     <span>{t('productionDate')}</span>
@@ -286,13 +307,12 @@ export default function ProductBatches() {
             {!productIdFilter && (
               <div className="form-field">
                 <label>{t('products')}</label>
-                <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)}>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <Autocomplete
+                  value={selectedProductId}
+                  onChange={setSelectedProductId}
+                  options={products.map((p) => ({ value: p.id, label: p.name }))}
+                  placeholder={lang === 'ar' ? 'اختر المنتج' : 'Select product'}
+                />
               </div>
             )}
             <div className="form-field">
