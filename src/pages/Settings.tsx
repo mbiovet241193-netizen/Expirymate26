@@ -360,6 +360,8 @@ export default function Settings() {
           lang={lang}
           doctorName={settings.doctorName}
           doctorCode={settings.doctorCode}
+          savedNumber={settings.backupWhatsAppNumber}
+          onSaveNumber={(number) => updateSettings({ backupWhatsAppNumber: number })}
           onClose={() => setShowWhatsAppBackup(false)}
         />
       )}

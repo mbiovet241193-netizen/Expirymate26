@@ -3,6 +3,14 @@ import Modal from './Modal';
 import { exportAllData } from '../../db/db';
 import type { Lang } from '../../i18n/translations';
 
+function toWhatsAppNumber(raw: string): string | null {
+  const digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('20')) return digits; // already has Egypt country code
+  if (digits.startsWith('0')) return `20${digits.slice(1)}`; // local format 0XXXXXXXXXX
+  return digits; // assume already includes a country code
+}
+
 function buildMessage(lang: Lang, doctorName: string, doctorCode: string): string {
   if (lang === 'ar') {
     return `زميلي العزيز،\n\nمرفق آخر نسخة احتياطية من نظام متابعة الصلاحية، محدثة حتى اليوم.\n\nتفضلوا بقبول فائق الاحترام والتقدير.\n\nتوقيع\n\nد. ${doctorName || '—'}\n\nكود: ${doctorCode || '—'}`;
@@ -14,11 +22,15 @@ export default function WhatsAppBackupDialog({
   lang,
   doctorName,
   doctorCode,
+  savedNumber,
+  onSaveNumber,
   onClose
 }: {
   lang: Lang;
   doctorName: string;
   doctorCode: string;
+  savedNumber?: string;
+  onSaveNumber: (number: string) => void;
   onClose: () => void;
 }) {
   // The backup file is built as soon as the dialog opens (not on click) so that
@@ -29,8 +41,11 @@ export default function WhatsAppBackupDialog({
   const [preparing, setPreparing] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [noticeIsError, setNoticeIsError] = useState(false);
+  const [number, setNumber] = useState(savedNumber ?? '');
+  const [remember, setRemember] = useState(!!savedNumber);
 
   const message = buildMessage(lang, doctorName, doctorCode);
+  const whatsappNumber = toWhatsAppNumber(number);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,13 +95,18 @@ export default function WhatsAppBackupDialog({
         ? 'تم تنزيل ملف النسخة الاحتياطية على جهازك. هيتم فتح واتساب بالرسالة، اختر الشخص وأرفق الملف الذي تم تنزيله يدويًا.'
         : 'The backup file has been downloaded to your device. WhatsApp will open with the message ready — choose the recipient and attach the downloaded file manually.'
     );
-    // No phone number here on purpose: this opens WhatsApp's own contact picker
-    // so the user chooses the recipient themselves, same as the image-share fallback.
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    // If a number was entered, open that chat directly (still requires the user to
+    // press Send themselves — nothing is sent automatically). Otherwise fall back to
+    // WhatsApp's generic contact picker, which isn't reliably supported everywhere.
+    const waUrl = whatsappNumber
+      ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
   };
 
   const share = () => {
     if (!file) return;
+    if (remember && number.trim()) onSaveNumber(number.trim());
     setNotice(null);
     setNoticeIsError(false);
     try {
@@ -109,6 +129,20 @@ export default function WhatsAppBackupDialog({
   return (
     <Modal title={lang === 'ar' ? 'مشاركة نسخة احتياطية عبر واتساب' : 'Share Backup via WhatsApp'} onClose={onClose}>
       <div className="form-field">
+        <label>{lang === 'ar' ? 'رقم واتساب المستلم (اختياري)' : "Recipient's WhatsApp Number (optional)"}</label>
+        <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="01xxxxxxxxx" />
+        <div style={{ fontSize: '0.78rem', color: 'var(--on-surface-variant)', marginTop: 4 }}>
+          {lang === 'ar'
+            ? 'لو واتساب ما فتحش تلقائيًا من غير رقم على جهازك، اكتب رقم المستلم هنا عشان يفتح المحادثة مباشرة (لسه هتضغط إرسال بنفسك).'
+            : "If WhatsApp doesn't open automatically without a number on your device, enter the recipient's number here to open the chat directly (you'll still press Send yourself)."}
+        </div>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', marginTop: 8 }}>
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        {lang === 'ar' ? 'حفظ هذا الرقم للاستخدام لاحقًا' : 'Save this number for future use'}
+      </label>
+
+      <div className="form-field" style={{ marginTop: 14 }}>
         <label>{lang === 'ar' ? 'معاينة الرسالة' : 'Message Preview'}</label>
         <textarea rows={7} value={message} readOnly />
       </div>
@@ -116,6 +150,12 @@ export default function WhatsAppBackupDialog({
       {notice && (
         <div style={{ fontSize: '0.82rem', color: noticeIsError ? 'var(--danger)' : 'var(--on-surface-variant)', marginTop: 8 }}>
           {notice}
+        </div>
+      )}
+
+      {!whatsappNumber && number.trim() && (
+        <div style={{ fontSize: '0.82rem', color: 'var(--danger)', marginTop: 8 }}>
+          {lang === 'ar' ? 'رقم غير صالح.' : 'Invalid number.'}
         </div>
       )}
 
