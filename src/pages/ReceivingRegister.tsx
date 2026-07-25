@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { CategoryRepo, ReceivingRepo, ReportRepo, ProductRepo, BatchRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, Product, ReceivingRow, ReceivingSession, ShelfLifeUnit } from '../types';
-import { calculateExpiry, computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
+import { calculateExpiry, computeBatchStatus } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
 import { exportToCsv } from '../utils/export';
@@ -46,7 +46,7 @@ export default function ReceivingRegister() {
         shelfLifeUnit: 'months',
         expiryDate: '',
         halfLifeDate: '',
-        status: 'within_shelf_life',
+        status: 'before_half',
         productTemp: '',
         notes: ''
       }
@@ -66,13 +66,7 @@ export default function ReceivingRegister() {
           });
           merged.expiryDate = calc.expiryDate;
           merged.halfLifeDate = calc.halfLifeDate;
-          merged.status = computeBatchStatus(
-            merged.productionDate,
-            calc.expiryDate,
-            calc.halfLifeDate,
-            merged.shelfLifeValue,
-            merged.shelfLifeUnit
-          ).status;
+          merged.status = computeBatchStatus(merged.productionDate, calc.expiryDate, calc.halfLifeDate).status;
         }
         return merged;
       })
@@ -312,7 +306,7 @@ export default function ReceivingRegister() {
                   </td>
                   <td>{row.expiryDate}</td>
                   <td>
-                    <StatusBadge status={row.status} shortRule={isShortShelfLife(row.shelfLifeValue, row.shelfLifeUnit)} />
+                    <StatusBadge status={row.status} />
                   </td>
                   <td>
                     <input style={{ width: 70 }} value={row.productTemp} onChange={(e) => updateRow(row.id, { productTemp: e.target.value })} />
@@ -338,7 +332,7 @@ export default function ReceivingRegister() {
           {rows.map((row) => (
             <div className="record-card" key={row.id}>
               <div className="record-card-header">
-                <StatusBadge status={row.status} shortRule={isShortShelfLife(row.shelfLifeValue, row.shelfLifeUnit)} />
+                <StatusBadge status={row.status} />
                 <button className="btn btn-danger btn-sm" onClick={() => removeRow(row.id)}>
                   {t('delete')}
                 </button>
@@ -478,7 +472,7 @@ function ReceivingPrintReport({
                   <td>{r.productionDate}</td>
                   <td>{r.expiryDate}</td>
                   <td>
-                    <StatusBadge status={r.status} shortRule={isShortShelfLife(r.shelfLifeValue, r.shelfLifeUnit)} />
+                    <StatusBadge status={r.status} />
                   </td>
                   <td>{r.productTemp}</td>
                   <td>{r.notes}</td>
@@ -495,7 +489,7 @@ function ReceivingPrintReport({
                 <div className="record-card-title">
                   {i + 1}. {r.productName}
                 </div>
-                <StatusBadge status={r.status} shortRule={isShortShelfLife(r.shelfLifeValue, r.shelfLifeUnit)} />
+                <StatusBadge status={r.status} />
               </div>
               <div className="record-card-row">
                 <span>{t('category')}</span>

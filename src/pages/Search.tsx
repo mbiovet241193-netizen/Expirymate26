@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BatchRepo, CategoryRepo, ProductRepo } from '../db/repositories';
 import type { Batch, Category, Product, ProductStatus } from '../types';
-import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
+import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
 
@@ -14,9 +14,7 @@ export default function Search() {
 
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  // "Expiring Soon" is a UI-level filter refinement of 'near_expiry' (short shelf-life
-  // products, <= 3 months, remaining days 1-9) - not a separate ProductStatus value.
-  const [statusFilter, setStatusFilter] = useState<ProductStatus | 'expiring_soon' | ''>('');
+  const [statusFilter, setStatusFilter] = useState<ProductStatus | ''>('');
   const [beforeDate, setBeforeDate] = useState('');
 
   useEffect(() => {
@@ -38,19 +36,14 @@ export default function Search() {
     return batches
       .map((b) => {
         const product = productMap.get(b.productId);
-        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
-        const shortRule = isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit);
-        return { batch: b, product, shortRule, ...computed };
+        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+        return { batch: b, product, ...computed };
       })
       .filter((r) => {
         if (!r.product) return false;
         if (query && !r.product.name.toLowerCase().includes(query.toLowerCase())) return false;
         if (categoryFilter && r.product.categoryId !== categoryFilter) return false;
-        if (statusFilter === 'expiring_soon') {
-          if (!(r.status === 'near_expiry' && r.shortRule)) return false;
-        } else if (statusFilter && r.status !== statusFilter) {
-          return false;
-        }
+        if (statusFilter && r.status !== statusFilter) return false;
         if (beforeDate && r.batch.expiryDate > beforeDate) return false;
         return true;
       })
@@ -77,12 +70,11 @@ export default function Search() {
           </div>
           <div className="form-field">
             <label>{t('status')}</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | 'expiring_soon' | '')}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | '')}>
               <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
-              <option value="within_shelf_life">{t('withinShelfLife')}</option>
+              <option value="before_half">{t('beforeHalf')}</option>
               <option value="after_half">{t('afterHalf')}</option>
-              <option value="near_expiry">{lang === 'ar' ? 'قريبة من الانتهاء' : 'Near Expiry'}</option>
-              <option value="expiring_soon">{t('expiringSoon')}</option>
+              <option value="near_expiry">{t('within30Days')}</option>
               <option value="expired">{t('expiredProducts')}</option>
             </select>
           </div>
@@ -112,7 +104,7 @@ export default function Search() {
                 </tr>
               </thead>
               <tbody>
-                {results.map(({ batch, product, remainingDays, status, shortRule }) => (
+                {results.map(({ batch, product, remainingDays, status }) => (
                   <tr key={batch.id}>
                     <td>{product?.name}</td>
                     <td>{catName(product?.categoryId ?? '')}</td>
@@ -120,7 +112,7 @@ export default function Search() {
                     <td>{batch.expiryDate}</td>
                     <td>{remainingDays}</td>
                     <td>
-                      <StatusBadge status={status} shortRule={shortRule} />
+                      <StatusBadge status={status} />
                     </td>
                   </tr>
                 ))}
@@ -129,11 +121,11 @@ export default function Search() {
           </div>
 
           <div className="mobile-cards">
-            {results.map(({ batch, product, remainingDays, status, shortRule }) => (
+            {results.map(({ batch, product, remainingDays, status }) => (
               <div className="record-card" key={batch.id}>
                 <div className="record-card-header">
                   <div className="record-card-title">{product?.name}</div>
-                  <StatusBadge status={status} shortRule={shortRule} />
+                  <StatusBadge status={status} />
                 </div>
                 <div className="record-card-row">
                   <span>{t('category')}</span>

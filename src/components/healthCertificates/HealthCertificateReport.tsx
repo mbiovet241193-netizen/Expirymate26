@@ -192,10 +192,10 @@ export default function HealthCertificateReport({
                     const emp = employeeById.get(r.employeeId);
                     return (
                       <div className="cert-image-cell" key={r.id}>
-                        <img src={r.imageDataUrl} alt={emp?.name ?? ''} />
-                        <div className="cert-image-caption">
-                          {emp?.code} — {emp?.name}
+                        <div className="cert-image-frame">
+                          <img src={r.imageDataUrl} alt={emp?.code ?? ''} />
                         </div>
+                        <div className="cert-image-caption">{emp?.code ?? '—'}</div>
                       </div>
                     );
                   })}

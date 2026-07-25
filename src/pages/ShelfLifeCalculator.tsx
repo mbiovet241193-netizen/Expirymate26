@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Product, ShelfLifeUnit } from '../types';
 import { ProductRepo } from '../db/repositories';
-import { calculateExpiry, computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
+import { calculateExpiry, computeBatchStatus } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
 
@@ -31,7 +31,7 @@ export default function ShelfLifeCalculator() {
   const result = useMemo(() => {
     if (!productionDate || !value) return null;
     const calc = calculateExpiry({ productionDate, shelfLifeValue: value, shelfLifeUnit: unit });
-    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate, value, unit);
+    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate);
     return { ...calc, ...status };
   }, [productionDate, value, unit]);
 
@@ -91,7 +91,7 @@ export default function ShelfLifeCalculator() {
             <div className="form-field">
               <label>{t('status')}</label>
               <div style={{ marginTop: 4 }}>
-                <StatusBadge status={result.status} shortRule={isShortShelfLife(value, unit)} />
+                <StatusBadge status={result.status} />
               </div>
             </div>
           </div>

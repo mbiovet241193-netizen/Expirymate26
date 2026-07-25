@@ -133,45 +133,29 @@ async function runBackgroundNotificationCheck() {
     const n = settings.notifications;
     const lang = settings.language === 'en' ? 'en' : 'ar';
     const todayIso = todayStr();
-    const doctorName = (settings.doctorName || '').trim();
 
-    const openers = {
-      morning: { ar: 'صباح الخير', en: 'Good morning' },
-      afternoon: { ar: 'مرحباً', en: 'Hello' },
-      evening: { ar: 'مساء الخير', en: 'Good evening' }
+    const intros = {
+      morning: { ar: 'صباح الخير.', en: 'Good morning.' },
+      afternoon: { ar: 'مرحباً.', en: 'Hello.' },
+      evening: { ar: 'مساء الخير.', en: 'Good evening.' }
     };
     const hour = new Date().getHours();
     const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-    const hasTitlePrefix = doctorName.startsWith('د.') || /^dr\.?\s/i.test(doctorName) || /^dr\./i.test(doctorName);
-    const nameSuffix = !doctorName ? '' : hasTitlePrefix ? ` ${doctorName}` : lang === 'ar' ? ` يا ${doctorName}` : `, ${doctorName}`;
-    const intro = `${openers[period][lang]}${nameSuffix}.`;
+    const intro = intros[period][lang];
     const signature = '\u2014 Dr. Deja';
 
-    // Shelf-life-in-months helper (mirrors src/engine/shelfLifeEngine.ts shelfLifeInMonths),
-    // used only for the <= 3 months "short shelf-life" threshold.
-    function shelfLifeMonths(value, unit) {
-      if (unit === 'days') return value / 30;
-      if (unit === 'years') return value * 12;
-      return value; // 'months'
-    }
-
-    if (n.categories.expiredProducts || n.categories.halfLifeProducts || n.categories.expiringProducts || n.categories.expiringSoon) {
+    if (n.categories.expiredProducts || n.categories.halfLifeProducts || n.categories.expiringProducts) {
       const [products, batches] = await Promise.all([idbGetAll(db, 'products'), idbGetAll(db, 'batches')]);
       const productIds = new Set(products.map((p) => p.id));
       let expired = 0,
-        within30 = 0, // near-expiry warning for long shelf-life products (> 3 months)
-        expiringSoon = 0, // near-expiry warning for short shelf-life products (<= 3 months), remaining days 1-9
+        expiring = 0,
         halfLife = 0;
       for (const b of batches) {
         if (!productIds.has(b.productId)) continue;
         const remaining = daysBetween(todayIso, b.expiryDate);
-        const shortRule = shelfLifeMonths(b.shelfLifeValue, b.shelfLifeUnit) <= 3;
-        const inFinalWarningWindow = shortRule ? remaining <= 9 : remaining <= 30;
-        if (remaining < 1) expired++;
-        else if (inFinalWarningWindow) {
-          if (shortRule) expiringSoon++;
-          else within30++;
-        } else if (todayIso >= b.halfLifeDate) halfLife++;
+        if (remaining < 0) expired++;
+        else if (remaining <= 30) expiring++;
+        else if (todayIso >= b.halfLifeDate) halfLife++;
       }
       if (n.categories.expiredProducts && expired > 0 && !(await wasSentToday(db, 'expiredProducts'))) {
         const body =
@@ -181,21 +165,13 @@ async function runBackgroundNotificationCheck() {
         await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'expired' } } });
         await markSentToday(db, 'expiredProducts');
       }
-      if (n.categories.expiringProducts && within30 > 0 && !(await wasSentToday(db, 'expiringProducts'))) {
+      if (n.categories.expiringProducts && expiring > 0 && !(await wasSentToday(db, 'expiringProducts'))) {
         const body =
           lang === 'ar'
-            ? `${intro}\nيوجد ${within30} منتجات ستنتهي خلال 30 يوماً.\n${signature}`
-            : `${intro}\n${within30} product(s) will expire within 30 days.\n${signature}`;
+            ? `${intro}\nيوجد ${expiring} منتجات ستنتهي خلال 30 يوماً.\n${signature}`
+            : `${intro}\n${expiring} product(s) will expire within 30 days.\n${signature}`;
         await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'near_expiry' } } });
         await markSentToday(db, 'expiringProducts');
-      }
-      if (n.categories.expiringSoon && expiringSoon > 0 && !(await wasSentToday(db, 'expiringSoon'))) {
-        const body =
-          lang === 'ar'
-            ? `${intro}\nيوجد ${expiringSoon} منتجات ستنتهي قريباً.\n${signature}`
-            : `${intro}\n${expiringSoon} product(s) are expiring soon.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'near_expiry' } } });
-        await markSentToday(db, 'expiringSoon');
       }
       if (n.categories.halfLifeProducts && halfLife > 0 && !(await wasSentToday(db, 'halfLifeProducts'))) {
         const body =

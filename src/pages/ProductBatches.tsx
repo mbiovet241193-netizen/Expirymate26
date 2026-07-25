@@ -8,23 +8,12 @@ import { useRouter } from '../router/Router';
 import { BatchRepo, ProductRepo, CategoryRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Batch, Category, Product, ProductStatus } from '../types';
-import {
-  calculateExpiry,
-  computeBatchStatus,
-  isShortShelfLife,
-  STATUS_LABELS_AR,
-  STATUS_LABELS_EN
-} from '../engine/shelfLifeEngine';
+import { calculateExpiry, computeBatchStatus, STATUS_LABELS_AR, STATUS_LABELS_EN } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import Autocomplete from '../components/common/Autocomplete';
 
-const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'within_shelf_life', 'after_half'];
-
-// "Expiring Soon" is a UI-level filter refinement of 'near_expiry' (short shelf-life
-// products, <= 3 months, remaining days 1-9) - not a separate ProductStatus value, so it
-// is handled alongside ALL_STATUSES here rather than in the core status enum.
-type BatchStatusFilter = ProductStatus | 'expiring_soon' | '';
+const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'before_half', 'after_half'];
 
 export default function ProductBatches() {
   const { t, lang } = useApp();
@@ -39,7 +28,7 @@ export default function ProductBatches() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<BatchStatusFilter>((params.status as BatchStatusFilter) ?? '');
+  const [statusFilter, setStatusFilter] = useState<ProductStatus | ''>((params.status as ProductStatus) ?? '');
 
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productionDate, setProductionDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -72,15 +61,8 @@ export default function ProductBatches() {
     if (categoryFilter) {
       list = list.filter((b) => productById.get(b.productId)?.categoryId === categoryFilter);
     }
-    if (statusFilter === 'expiring_soon') {
-      list = list.filter((b) => {
-        const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
-        return status === 'near_expiry' && isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit);
-      });
-    } else if (statusFilter) {
-      list = list.filter(
-        (b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit).status === statusFilter
-      );
+    if (statusFilter) {
+      list = list.filter((b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate).status === statusFilter);
     }
 
     // FEFO: First Expired First Out -> sort ascending by expiry date (default, always on)
@@ -145,16 +127,7 @@ export default function ProductBatches() {
         })
       : null;
 
-  // Generic label for the filter dropdown (near_expiry covers both "Will Expire Within 30 Days"
-  // and "Expiring Soon" batches, so the filter option itself uses a neutral wording).
-  const statusLabel = (s: ProductStatus) =>
-    s === 'near_expiry'
-      ? lang === 'ar'
-        ? 'قريبة من الانتهاء'
-        : 'Near Expiry'
-      : lang === 'ar'
-      ? STATUS_LABELS_AR[s]
-      : STATUS_LABELS_EN[s];
+  const statusLabel = (s: ProductStatus) => (lang === 'ar' ? STATUS_LABELS_AR[s] : STATUS_LABELS_EN[s]);
 
   return (
     <div>
@@ -194,14 +167,13 @@ export default function ProductBatches() {
             </div>
             <div className="form-field">
               <label>{t('status')}</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as BatchStatusFilter)}>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProductStatus | '')}>
                 <option value="">{lang === 'ar' ? 'كل الحالات' : 'All Statuses'}</option>
                 {ALL_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {statusLabel(s)}
                   </option>
                 ))}
-                <option value="expiring_soon">{t('expiringSoon')}</option>
               </select>
             </div>
           </div>
@@ -234,9 +206,7 @@ export default function ProductBatches() {
                   const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                     b.productionDate,
                     b.expiryDate,
-                    b.halfLifeDate,
-                    b.shelfLifeValue,
-                    b.shelfLifeUnit
+                    b.halfLifeDate
                   );
                   return (
                     <tr key={b.id}>
@@ -247,7 +217,7 @@ export default function ProductBatches() {
                       <td>{remainingDays}</td>
                       <td>{consumptionPercent.toFixed(0)}%</td>
                       <td>
-                        <StatusBadge status={status} shortRule={isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)} />
+                        <StatusBadge status={status} />
                       </td>
                       <td style={{ display: 'flex', gap: 8 }}>
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(b)}>
@@ -270,15 +240,13 @@ export default function ProductBatches() {
               const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                 b.productionDate,
                 b.expiryDate,
-                b.halfLifeDate,
-                b.shelfLifeValue,
-                b.shelfLifeUnit
+                b.halfLifeDate
               );
               return (
                 <div className="expiry-card" key={b.id}>
                   <div className="expiry-card-header">
                     <div className="expiry-card-title">{productIdFilter ? productName(productIdFilter) : productName(b.productId)}</div>
-                    <StatusBadge status={status} shortRule={isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)} />
+                    <StatusBadge status={status} />
                   </div>
                   <div className="expiry-card-row">
                     <span>{t('productionDate')}</span>

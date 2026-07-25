@@ -1,40 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { exportAllData, importAllData } from '../db/db';
 import { downloadJson, readJsonFile } from '../utils/export';
 import { sendTestNotification } from '../notifications/engine';
 import type { NotificationSettings } from '../types';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
-
-type SyncStatus = 'checking' | 'unsupported' | 'not-installed' | 'permission-denied' | 'registered' | 'not-registered';
+import WhatsAppBackupDialog from '../components/common/WhatsAppBackupDialog';
 
 export default function Settings() {
   const { t, lang, settings, updateSettings } = useApp();
   const { installed, canInstall, isIOS, promptInstall } = useInstallPrompt();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [showWhatsAppBackup, setShowWhatsAppBackup] = useState(false);
 
   const [siteNameInput, setSiteNameInput] = useState('');
   const [supplierInput, setSupplierInput] = useState('');
   const [testResult, setTestResult] = useState<'sent' | 'denied' | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('checking');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        if (!('serviceWorker' in navigator)) return setSyncStatus('unsupported');
-        const reg = (await navigator.serviceWorker.getRegistration()) as any;
-        if (!reg || !('periodicSync' in reg)) return setSyncStatus('unsupported');
-        if (!installed) return setSyncStatus('not-installed');
-        const status: any = await (navigator as any).permissions.query({ name: 'periodic-background-sync' });
-        if (status.state !== 'granted') return setSyncStatus('permission-denied');
-        const tags: string[] = await reg.periodicSync.getTags();
-        setSyncStatus(tags.includes('expirymate-daily-check') ? 'registered' : 'not-registered');
-      } catch {
-        setSyncStatus('unsupported');
-      }
-    })();
-  }, [installed]);
 
   const updateNotifications = (partial: Partial<NotificationSettings>) => {
     updateSettings({ notifications: { ...settings.notifications, ...partial } });
@@ -71,7 +53,7 @@ export default function Settings() {
       setTestResult('denied');
       return;
     }
-    const ok = await sendTestNotification(lang, settings.doctorName);
+    const ok = await sendTestNotification(lang);
     setTestResult(ok ? 'sent' : 'denied');
   };
 
@@ -127,6 +109,18 @@ export default function Settings() {
           <div className="form-field">
             <label>{t('doctorName')}</label>
             <input value={settings.doctorName} onChange={(e) => updateSettings({ doctorName: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>{lang === 'ar' ? 'جنس الطبيب' : 'Doctor Gender'}</label>
+            <select value={settings.doctorGender ?? 'male'} onChange={(e) => updateSettings({ doctorGender: e.target.value as 'male' | 'female' })}>
+              <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
+              <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
+            </select>
+            <div style={{ fontSize: '0.78rem', color: 'var(--on-surface-variant)' }}>
+              {lang === 'ar'
+                ? 'يُستخدم فقط لضبط صياغة مخاطبة الدكتورة ديجا، ولا يؤثر على التقارير أو البيانات المحفوظة.'
+                : "Used only to adjust Dr. Deja's grammatical wording — never affects reports or stored data."}
+            </div>
           </div>
           <div className="form-field">
             <label>{t('doctorCode')}</label>
@@ -279,14 +273,6 @@ export default function Settings() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={settings.notifications.categories.expiringSoon}
-                  onChange={(e) => updateCategory('expiringSoon', e.target.checked)}
-                />
-                {t('expiringSoon')}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
                   checked={settings.notifications.categories.dailyReminder}
                   onChange={(e) => updateCategory('dailyReminder', e.target.checked)}
                 />
@@ -340,41 +326,6 @@ export default function Settings() {
             ? 'ملاحظة: التوقيت الدقيق مضمون فقط عند فتح التطبيق. على أندرويد/ديسكتوب (Chrome/Edge) قد تصل الإشعارات أحيانًا في الخلفية أيضًا؛ على آيفون تظهر فقط عند فتح التطبيق.'
             : 'Note: exact timing is only guaranteed when the app is open. On Android/Desktop Chrome/Edge, notifications may sometimes also arrive in the background; on iPhone they appear only when the app is opened.'}
         </p>
-        <p
-          style={{
-            fontSize: '0.78rem',
-            marginTop: 8,
-            marginBottom: 0,
-            color:
-              syncStatus === 'registered'
-                ? 'var(--success)'
-                : syncStatus === 'checking'
-                ? 'var(--on-surface-variant)'
-                : 'var(--danger)'
-          }}
-        >
-          {syncStatus === 'checking' && (lang === 'ar' ? '⏳ جارٍ فحص حالة الفحص الخلفي...' : '⏳ Checking background sync status...')}
-          {syncStatus === 'unsupported' &&
-            (lang === 'ar'
-              ? '⚠️ هذا المتصفح لا يدعم الفحص الخلفي (Periodic Background Sync) — التنبيهات ستظهر فقط عند فتح التطبيق.'
-              : '⚠️ This browser does not support Periodic Background Sync — alerts will only appear when the app is opened.')}
-          {syncStatus === 'not-installed' &&
-            (lang === 'ar'
-              ? '⚠️ الفحص الخلفي يعمل فقط بعد تثبيت التطبيق فعليًا على الجهاز (Install App). ثبّته من الأعلى ثم أعد فتح هذه الصفحة.'
-              : '⚠️ Background sync only works after installing the app on the device. Install it above, then reopen this page.')}
-          {syncStatus === 'permission-denied' &&
-            (lang === 'ar'
-              ? '⚠️ المتصفح لم يمنح إذن الفحص الخلفي بعد. Chrome يمنحه تلقائيًا فقط مع الاستخدام المتكرر للتطبيق على مدار عدة أيام — استمر في فتح التطبيق يوميًا وسيُمنح تلقائيًا.'
-              : '⚠️ The browser has not granted background-sync permission yet. Chrome grants it automatically only after frequent, repeated use over several days — keep opening the app daily and it will be granted.')}
-          {syncStatus === 'not-registered' &&
-            (lang === 'ar'
-              ? '⚠️ الإذن مُمنوح لكن التسجيل لم يكتمل بعد — أعد فتح التطبيق مرة واحدة ليكتمل التسجيل.'
-              : '⚠️ Permission is granted but registration has not completed yet — reopen the app once to complete it.')}
-          {syncStatus === 'registered' &&
-            (lang === 'ar'
-              ? '✅ الفحص الخلفي مُفعّل ومسجّل على هذا الجهاز. تذكّر أن Chrome هو من يحدد التوقيت الفعلي (وقد لا يكون دقيقًا)، وأن أوضاع توفير البطارية على بعض الأجهزة (مثل شاومي/هواوي/سامسونج) قد توقفه رغم تسجيله.'
-              : '✅ Background sync is enabled and registered on this device. Note that Chrome itself decides the exact timing (it may not be precise), and battery-saver modes on some devices (e.g. Xiaomi/Huawei/Samsung) can still block it even when registered.')}
-        </p>
       </div>
 
       <div className="card">
@@ -391,6 +342,9 @@ export default function Settings() {
           <button className="btn btn-outline" onClick={() => restoreInputRef.current?.click()}>
             ⬆️ {t('restore')}
           </button>
+          <button className="btn btn-outline" onClick={() => setShowWhatsAppBackup(true)}>
+            🟢 {lang === 'ar' ? 'إرسال نسخة احتياطية عبر واتساب' : 'Send Backup via WhatsApp'}
+          </button>
           <input
             type="file"
             accept="application/json"
@@ -400,6 +354,17 @@ export default function Settings() {
           />
         </div>
       </div>
+
+      {showWhatsAppBackup && (
+        <WhatsAppBackupDialog
+          lang={lang}
+          doctorName={settings.doctorName}
+          doctorCode={settings.doctorCode}
+          savedNumber={settings.backupWhatsAppNumber}
+          onSaveNumber={(number) => updateSettings({ backupWhatsAppNumber: number })}
+          onClose={() => setShowWhatsAppBackup(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,85 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRouter, type Route } from '../router/Router';
-import { BatchRepo, ProductRepo, NonConformingRepo, ReportRepo, EmployeeRepo, HealthCertificateRepo, ReceivingRepo } from '../db/repositories';
-import { computeBatchStatus, isShortShelfLife } from '../engine/shelfLifeEngine';
-import { computeCertificateStatus } from '../engine/certificateEngine';
-import type { Batch, SavedReport } from '../types';
-import DrDejaWelcomeCard, { type DrDejaSummaryItem } from '../components/assistant/DrDejaWelcomeCard';
-import StatCard from '../components/common/StatCard';
-
-interface Stats {
-  totalProducts: number;
-  totalBatches: number;
-  expired: number;
-  within30: number;
-  expiringSoon: number;
-  afterHalf: number;
-  nonConforming: number;
-  expiredCerts: number;
-  expiringCerts: number;
-  receivingToday: number;
-}
+import { ReportRepo } from '../db/repositories';
+import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
+import type { SavedReport } from '../types';
+import DrDejaWelcomeCard, { type DrDejaSummaryItem, type DrDejaTotalItem } from '../components/assistant/DrDejaWelcomeCard';
 
 export default function Dashboard() {
   const { t, lang, settings } = useApp();
   const { navigate } = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [reports, setReports] = useState<SavedReport[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [products, batches, nc, savedReports, employees, certificates, receivingSessions] = await Promise.all([
-        ProductRepo.all(),
-        BatchRepo.all(),
-        NonConformingRepo.all(),
-        ReportRepo.all(),
-        EmployeeRepo.all(),
-        HealthCertificateRepo.all(),
-        ReceivingRepo.all()
-      ]);
-
-      let expired = 0;
-      let within30 = 0;
-      let expiringSoon = 0;
-      let afterHalf = 0;
-
-      batches.forEach((b: Batch) => {
-        const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
-        if (status === 'expired') expired++;
-        else if (status === 'near_expiry') {
-          if (isShortShelfLife(b.shelfLifeValue, b.shelfLifeUnit)) expiringSoon++;
-          else within30++;
-        } else if (status === 'after_half') afterHalf++;
-        // within_shelf_life batches are intentionally not counted here - Dashboard
-        // summary cards only surface items requiring attention.
-      });
-
-      const employeeIds = new Set(employees.map((e) => e.id));
-      let expiredCerts = 0;
-      let expiringCerts = 0;
-      certificates.forEach((c) => {
-        if (!employeeIds.has(c.employeeId)) return;
-        const { status } = computeCertificateStatus(c.expiryDate);
-        if (status === 'expired') expiredCerts++;
-        else if (status === 'near_expiry') expiringCerts++;
-      });
-
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const receivingToday = receivingSessions.filter((s) => s.receivingDate === todayStr).length;
-
-      setStats({
-        totalProducts: products.length,
-        totalBatches: batches.length,
-        expired,
-        within30,
-        expiringSoon,
-        afterHalf,
-        nonConforming: nc.length,
-        expiredCerts,
-        expiringCerts,
-        receivingToday
-      });
+      const [computedStats, savedReports] = await Promise.all([computeDashboardStats(), ReportRepo.all()]);
+      setStats(computedStats);
 
       setReports(
         savedReports
@@ -109,8 +45,8 @@ export default function Dashboard() {
   const summaryItems: DrDejaSummaryItem[] = [
     { label: t('expiredProducts'), count: stats.expired, color: 'var(--danger)' },
     { label: t('within30Days'), count: stats.within30, color: 'var(--info)' },
-    { label: t('expiringSoon'), count: stats.expiringSoon, color: 'var(--info)' },
     { label: t('afterHalf'), count: stats.afterHalf, color: 'var(--warning)' },
+    { label: t('nonConformingCount'), count: stats.nonConforming, color: 'var(--danger)' },
     { label: lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates', count: stats.expiredCerts, color: 'var(--danger)' },
     {
       label: lang === 'ar' ? 'شهادات صحية خلال 30 يومًا' : 'Health Certificates Expiring Within 30 Days',
@@ -120,31 +56,15 @@ export default function Dashboard() {
     { label: lang === 'ar' ? 'سجلات استلام اليوم' : "Today's Receiving Records", count: stats.receivingToday, color: 'var(--primary)' }
   ];
 
+  const totals: DrDejaTotalItem[] = [
+    { label: t('totalProducts'), value: stats.totalProducts, icon: '📦' },
+    { label: t('totalBatches'), value: stats.totalBatches, icon: '⏳' },
+    { label: t('beforeHalf'), value: stats.beforeHalf, icon: '✅' }
+  ];
+
   return (
     <div>
-      <DrDejaWelcomeCard lang={lang} items={summaryItems} doctorName={settings.doctorName} />
-
-      <div className="stat-grid">
-        <StatCard label={t('totalProducts')} value={stats.totalProducts} color="var(--primary)" icon="📦" />
-        <StatCard label={t('totalBatches')} value={stats.totalBatches} color="var(--info)" icon="⏳" />
-        <StatCard label={t('expiredProducts')} value={stats.expired} color="var(--danger)" icon="⛔" />
-        <StatCard label={t('within30Days')} value={stats.within30} color="var(--info)" icon="⏰" />
-        <StatCard label={t('expiringSoon')} value={stats.expiringSoon} color="var(--info)" icon="⏰" />
-        <StatCard label={t('afterHalf')} value={stats.afterHalf} color="var(--warning)" icon="⚠️" />
-        <StatCard label={t('nonConformingCount')} value={stats.nonConforming} color="var(--danger)" icon="🚫" />
-        <StatCard
-          label={lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates'}
-          value={stats.expiredCerts}
-          color="var(--danger)"
-          icon="🩺"
-        />
-        <StatCard
-          label={lang === 'ar' ? 'شهادات صحية خلال 30 يومًا' : 'Health Certificates Within 30 Days'}
-          value={stats.expiringCerts}
-          color="var(--info)"
-          icon="🩺"
-        />
-      </div>
+      <DrDejaWelcomeCard lang={lang} gender={settings.doctorGender} items={summaryItems} totals={totals} />
 
       <h2 className="section-title">
         <span aria-hidden="true">⚡</span>

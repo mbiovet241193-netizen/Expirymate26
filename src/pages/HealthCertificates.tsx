@@ -31,7 +31,8 @@ export default function HealthCertificates() {
   const [expiryDate, setExpiryDate] = useState('');
   const [notes, setNotes] = useState('');
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [showEmployeesManager, setShowEmployeesManager] = useState(false);
 
@@ -362,8 +363,11 @@ export default function HealthCertificates() {
               <label>{lang === 'ar' ? 'صورة الشهادة (اختياري)' : 'Certificate Image (optional)'}</label>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 {imageDataUrl && <img src={imageDataUrl} alt="certificate" style={{ height: 60, borderRadius: 8 }} />}
-                <button className="btn btn-outline btn-sm" onClick={() => imageInputRef.current?.click()}>
-                  {lang === 'ar' ? 'رفع صورة' : 'Upload'}
+                <button className="btn btn-outline btn-sm" onClick={() => cameraInputRef.current?.click()}>
+                  📷 {lang === 'ar' ? 'التقاط بالكاميرا' : 'Capture from Camera'}
+                </button>
+                <button className="btn btn-outline btn-sm" onClick={() => galleryInputRef.current?.click()}>
+                  🖼️ {lang === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery'}
                 </button>
                 {imageDataUrl && (
                   <button className="btn btn-outline btn-sm" onClick={() => setImageDataUrl(undefined)}>
@@ -371,7 +375,15 @@ export default function HealthCertificates() {
                   </button>
                 )}
                 <input
-                  ref={imageInputRef}
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => onImageSelected(e.target.files?.[0])}
+                />
+                <input
+                  ref={galleryInputRef}
                   type="file"
                   accept="image/*"
                   style={{ display: 'none' }}

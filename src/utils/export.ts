@@ -23,6 +23,31 @@ export function exportToCsv(filename: string, rows: Record<string, unknown>[]): 
   downloadBlob(csv, filename.endsWith('.csv') ? filename : `${filename}.csv`, 'text/csv;charset=utf-8;');
 }
 
+/** Exports several labeled tables into a single CSV file, one after another, each preceded by its section title. */
+export function exportSectionsToCsv(filename: string, sections: { title: string; rows: Record<string, unknown>[] }[]): void {
+  const escape = (val: unknown) => {
+    const s = String(val ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+  const blocks: string[] = [];
+  for (const section of sections) {
+    const lines = [section.title];
+    if (section.rows.length === 0) {
+      lines.push('—');
+    } else {
+      const headers = Object.keys(section.rows[0]);
+      lines.push(headers.join(','));
+      section.rows.forEach((row) => lines.push(headers.map((h) => escape(row[h])).join(',')));
+    }
+    blocks.push(lines.join('\r\n'));
+  }
+  const csv = '\uFEFF' + blocks.join('\r\n\r\n');
+  downloadBlob(csv, filename.endsWith('.csv') ? filename : `${filename}.csv`, 'text/csv;charset=utf-8;');
+}
+
 export function downloadJson(filename: string, data: unknown): void {
   const json = JSON.stringify(data, null, 2);
   downloadBlob(json, filename.endsWith('.json') ? filename : `${filename}.json`, 'application/json');

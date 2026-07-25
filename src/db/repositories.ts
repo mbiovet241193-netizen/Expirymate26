@@ -20,7 +20,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     expiredProducts: false,
     halfLifeProducts: false,
     expiringProducts: false,
-    expiringSoon: false,
     dailyReminder: false,
     expiredCertificates: false,
     expiringCertificates: false
@@ -46,15 +45,17 @@ export async function ensureDefaultCategories(): Promise<void> {
 export async function ensureDefaultSettings(): Promise<AppSettings> {
   const existing = await dbGetAll<AppSettings & { id: string }>(STORES.settings);
   if (existing.length > 0) {
+    let dirty = false;
     // Backfill notifications block for settings saved before this feature existed.
     if (!existing[0].notifications) {
       existing[0].notifications = DEFAULT_NOTIFICATION_SETTINGS;
-      await dbPut(STORES.settings, existing[0]);
-    } else if (existing[0].notifications.categories && existing[0].notifications.categories.expiringSoon === undefined) {
-      // Backfill the "Expiring Soon" category for settings saved before this feature existed.
-      existing[0].notifications.categories.expiringSoon = false;
-      await dbPut(STORES.settings, existing[0]);
+      dirty = true;
     }
+    if (!existing[0].doctorGender) {
+      existing[0].doctorGender = 'male';
+      dirty = true;
+    }
+    if (dirty) await dbPut(STORES.settings, existing[0]);
     return existing[0];
   }
   const defaults: AppSettings & { id: string } = {
@@ -64,6 +65,7 @@ export async function ensureDefaultSettings(): Promise<AppSettings> {
     supplierList: [],
     doctorName: '',
     doctorCode: '',
+    doctorGender: 'male',
     theme: 'light',
     language: 'ar',
     notifications: DEFAULT_NOTIFICATION_SETTINGS

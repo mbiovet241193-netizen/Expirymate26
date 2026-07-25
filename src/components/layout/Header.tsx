@@ -21,7 +21,7 @@ const TITLES: Record<string, TranslationKey> = {
 
 export default function Header() {
   const { settings, t, toggleTheme, updateSettings } = useApp();
-  const { route, navigate, goBack } = useRouter();
+  const { route, navigate } = useRouter();
 
   return (
     <header className="top-header no-print">
@@ -29,18 +29,6 @@ export default function Header() {
         <span className="header-brand-icon" aria-hidden="true">🛡️</span>
         <span className="header-brand-title">ExpiryMate</span>
       </div>
-      {route !== 'dashboard' && (
-        <button
-          className="icon-btn back-btn"
-          title={t('back')}
-          aria-label={t('back')}
-          onClick={goBack}
-        >
-          <span className="back-btn-arrow" aria-hidden="true">
-            ←
-          </span>
-        </button>
-      )}
       {route !== 'dashboard' && <h1 className="header-page-title">{t(TITLES[route] ?? 'dashboard')}</h1>}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button

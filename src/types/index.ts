@@ -2,7 +2,7 @@
 
 export type ShelfLifeUnit = 'days' | 'months' | 'years';
 
-export type ProductStatus = 'within_shelf_life' | 'after_half' | 'near_expiry' | 'expired';
+export type ProductStatus = 'before_half' | 'after_half' | 'near_expiry' | 'expired';
 
 export interface Category {
   id: string;
@@ -90,8 +90,7 @@ export type ReportType =
   | 'full'
   | 'expired'
   | 'near_expiry'
-  | 'expiring_soon'
-  | 'within_shelf_life'
+  | 'before_half'
   | 'after_half'
   | 'by_category'
   | 'receiving'
@@ -113,8 +112,7 @@ export interface NotificationSettings {
   categories: {
     expiredProducts: boolean;
     halfLifeProducts: boolean;
-    expiringProducts: boolean; // within 30 days (long shelf-life products, > 3 months)
-    expiringSoon: boolean; // short shelf-life products (<= 3 months), remaining days 1-9
+    expiringProducts: boolean; // within 30 days
     dailyReminder: boolean;
     expiredCertificates: boolean;
     expiringCertificates: boolean; // within 30 days
@@ -128,6 +126,8 @@ export interface AppSettings {
   supplierList: string[];
   doctorName: string;
   doctorCode: string;
+  doctorGender: 'male' | 'female'; // grammar only — never affects reports/records
+  backupWhatsAppNumber?: string; // last-used recipient number for shift-handover backup sharing
   theme: 'light' | 'dark';
   language: 'ar' | 'en';
   notifications: NotificationSettings;
