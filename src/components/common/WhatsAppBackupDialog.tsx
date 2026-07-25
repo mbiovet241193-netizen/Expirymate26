@@ -38,8 +38,13 @@ export default function WhatsAppBackupDialog({
       try {
         const data = await exportAllData();
         const json = JSON.stringify(data, null, 2);
-        const filename = `expirymate-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        const f = new File([json], filename, { type: 'application/json' });
+        // Use a .txt/text-plain file specifically for WhatsApp sharing: many mobile
+        // browsers silently reject navigator.share() for application/json files
+        // (it isn't on their allowed file-type list), causing a silent fallback to
+        // download instead of opening the share sheet. text/plain is universally
+        // accepted, and the content itself is still the same valid JSON backup.
+        const filename = `expirymate-backup-${new Date().toISOString().slice(0, 10)}.txt`;
+        const f = new File([json], filename, { type: 'text/plain' });
         if (!cancelled) {
           setFile(f);
           setPreparing(false);

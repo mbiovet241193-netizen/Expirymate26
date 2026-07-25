@@ -347,7 +347,7 @@ export default function Settings() {
           </button>
           <input
             type="file"
-            accept="application/json"
+            accept="application/json,.json,.txt"
             ref={restoreInputRef}
             style={{ display: 'none' }}
             onChange={(e) => e.target.files && doRestore(e.target.files[0])}
