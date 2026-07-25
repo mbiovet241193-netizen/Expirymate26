@@ -1,17 +1,15 @@
 // Employee database screen for the Health Certificates module.
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { EmployeeRepo, HealthCertificateRepo } from '../../db/repositories';
+import { EmployeeRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
-import type { Employee, HealthCertificate } from '../../types';
+import type { Employee } from '../../types';
 import Modal from '../common/Modal';
-import WhatsAppMessageDialog from './WhatsAppMessageDialog';
 import { exportEmployeesToExcel, parseEmployeesExcelFile } from '../../utils/employeesExcel';
 
 export default function EmployeesManager({ onBack }: { onBack: () => void }) {
-  const { lang, t, settings } = useApp();
+  const { lang, t } = useApp();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [certificates, setCertificates] = useState<HealthCertificate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
@@ -22,24 +20,14 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
   const [insuranceNumber, setInsuranceNumber] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
   const [importSummary, setImportSummary] = useState<{ created: number; updated: number } | null>(null);
-  const [whatsappTarget, setWhatsappTarget] = useState<Employee | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setEmployees(await EmployeeRepo.all());
-    setCertificates(await HealthCertificateRepo.all());
   };
   useEffect(() => {
     load();
   }, []);
-
-  /** Most recently added certificate image on file for this employee, if any. */
-  const latestCertImage = (employeeId: string): string | undefined => {
-    const withImages = certificates.filter((c) => c.employeeId === employeeId && c.imageDataUrl);
-    if (withImages.length === 0) return undefined;
-    withImages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return withImages[0].imageDataUrl;
-  };
 
   const visible = searchQuery.trim()
     ? employees.filter(
@@ -206,26 +194,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                     <td>{e.code}</td>
                     <td>{e.name}</td>
                     <td>{e.jobTitle}</td>
-                    <td>
-                      {e.mobilePhone ?? '—'}
-                      <button
-                        className="icon-btn"
-                        style={{ marginInlineStart: 6, width: 30, height: 30, fontSize: '0.85rem' }}
-                        disabled={!e.mobilePhone}
-                        onClick={() => setWhatsappTarget(e)}
-                        title={
-                          e.mobilePhone
-                            ? lang === 'ar'
-                              ? 'إرسال رسالة واتساب'
-                              : 'Send WhatsApp message'
-                            : lang === 'ar'
-                            ? 'لا يوجد رقم موبايل مسجل'
-                            : 'No mobile number on file'
-                        }
-                      >
-                        🟢
-                      </button>
-                    </td>
+                    <td>{e.mobilePhone ?? '—'}</td>
                     <td style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-outline btn-sm" onClick={() => openEdit(e)}>
                         {t('edit')}
@@ -257,17 +226,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                 {e.mobilePhone && (
                   <div className="record-card-row">
                     <span>{lang === 'ar' ? 'الموبايل' : 'Mobile'}</span>
-                    <span>
-                      {e.mobilePhone}{' '}
-                      <button
-                        className="icon-btn"
-                        style={{ width: 30, height: 30, fontSize: '0.85rem' }}
-                        onClick={() => setWhatsappTarget(e)}
-                        title={lang === 'ar' ? 'إرسال رسالة واتساب' : 'Send WhatsApp message'}
-                      >
-                        🟢
-                      </button>
-                    </span>
+                    <span>{e.mobilePhone}</span>
                   </div>
                 )}
                 <div className="record-card-actions">
@@ -321,15 +280,6 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
             </button>
           </div>
         </Modal>
-      )}
-      {whatsappTarget && (
-        <WhatsAppMessageDialog
-          employee={whatsappTarget}
-          companyName={settings.companyName || (lang === 'ar' ? 'الشركة' : 'The Company')}
-          lang={lang}
-          certificateImageDataUrl={latestCertImage(whatsappTarget.id)}
-          onClose={() => setWhatsappTarget(null)}
-        />
       )}
     </div>
   );

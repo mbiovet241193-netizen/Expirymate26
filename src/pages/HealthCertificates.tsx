@@ -9,6 +9,7 @@ import Modal from '../components/common/Modal';
 import { useRouter } from '../router/Router';
 import EmployeesManager from '../components/healthCertificates/EmployeesManager';
 import HealthCertificateReport from '../components/healthCertificates/HealthCertificateReport';
+import WhatsAppMessageDialog from '../components/healthCertificates/WhatsAppMessageDialog';
 import Autocomplete from '../components/common/Autocomplete';
 import StatCard from '../components/common/StatCard';
 
@@ -35,6 +36,7 @@ export default function HealthCertificates() {
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [showEmployeesManager, setShowEmployeesManager] = useState(false);
+  const [whatsappTarget, setWhatsappTarget] = useState<HealthCertificate | null>(null);
 
   const [showReportSetup, setShowReportSetup] = useState(false);
   const [reportScope, setReportScope] = useState<ReportScope>('all');
@@ -259,6 +261,7 @@ export default function HealthCertificates() {
                 {siteRecords.map((c) => {
                   const emp = employeeById.get(c.employeeId);
                   const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
+                  const needsContact = (status === 'near_expiry' || status === 'expired') && !!emp?.mobilePhone;
                   return (
                     <tr key={c.id}>
                       <td>{emp?.code ?? '—'}</td>
@@ -270,6 +273,16 @@ export default function HealthCertificates() {
                         <CertificateStatusBadge status={status} />
                       </td>
                       <td style={{ display: 'flex', gap: 8 }}>
+                        {needsContact && (
+                          <button
+                            className="icon-btn"
+                            style={{ width: 30, height: 30, fontSize: '0.85rem' }}
+                            onClick={() => setWhatsappTarget(c)}
+                            title={lang === 'ar' ? 'إرسال رسالة واتساب' : 'Send WhatsApp message'}
+                          >
+                            🟢
+                          </button>
+                        )}
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(c)}>
                           {t('edit')}
                         </button>
@@ -288,6 +301,7 @@ export default function HealthCertificates() {
             {siteRecords.map((c) => {
               const emp = employeeById.get(c.employeeId);
               const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
+              const needsContact = (status === 'near_expiry' || status === 'expired') && !!emp?.mobilePhone;
               return (
                 <div className="record-card" key={c.id}>
                   <div className="record-card-header">
@@ -311,6 +325,16 @@ export default function HealthCertificates() {
                     <span>{remainingDays}</span>
                   </div>
                   <div className="record-card-actions">
+                    {needsContact && (
+                      <button
+                        className="icon-btn"
+                        style={{ width: 30, height: 30, fontSize: '0.85rem' }}
+                        onClick={() => setWhatsappTarget(c)}
+                        title={lang === 'ar' ? 'إرسال رسالة واتساب' : 'Send WhatsApp message'}
+                      >
+                        🟢
+                      </button>
+                    )}
                     <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => openEdit(c)}>
                       {t('edit')}
                     </button>
@@ -458,6 +482,20 @@ export default function HealthCertificates() {
           </div>
         </Modal>
       )}
+
+      {whatsappTarget && (() => {
+        const emp = employeeById.get(whatsappTarget.employeeId);
+        return emp ? (
+          <WhatsAppMessageDialog
+            employee={emp}
+            companyName={settings.companyName || (lang === 'ar' ? 'الشركة' : 'The Company')}
+            lang={lang}
+            certificateImageDataUrl={whatsappTarget.imageDataUrl}
+            certificateExpiryDate={whatsappTarget.expiryDate}
+            onClose={() => setWhatsappTarget(null)}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

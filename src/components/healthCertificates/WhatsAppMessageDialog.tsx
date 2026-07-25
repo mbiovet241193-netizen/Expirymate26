@@ -32,12 +32,16 @@ export default function WhatsAppMessageDialog({
   companyName,
   lang,
   certificateImageDataUrl,
+  certificateExpiryDate,
   onClose
 }: {
   employee: Employee;
   companyName: string;
   lang: Lang;
   certificateImageDataUrl?: string;
+  /** The expiry date of the actual certificate record being followed up on.
+   *  Falls back to employee.healthCertExpiryDate when not provided (e.g. legacy callers). */
+  certificateExpiryDate?: string;
   onClose: () => void;
 }) {
   const [option, setOption] = useState<MessageOption | null>(null);
@@ -45,7 +49,8 @@ export default function WhatsAppMessageDialog({
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const whatsappNumber = employee.mobilePhone ? toWhatsAppNumber(employee.mobilePhone) : null;
-  const hasCert = !!employee.healthCertExpiryDate;
+  const effectiveExpiryDate = certificateExpiryDate ?? employee.healthCertExpiryDate;
+  const hasCert = !!effectiveExpiryDate;
   const hasInsurance = !!employee.insuranceNumber;
 
   const templates: Record<Exclude<MessageOption, 'custom'>, { label: string; enabled: boolean; build: () => string }> = {
@@ -54,7 +59,7 @@ export default function WhatsAppMessageDialog({
       enabled: hasCert,
       build: () =>
         `السلام عليكم أستاذ/ ${employee.name}.\n\nنود تذكيركم بأن شهادتكم الصحية ستنتهي بتاريخ:\n${formatDate(
-          employee.healthCertExpiryDate!,
+          effectiveExpiryDate!,
           lang
         )}\n\nيرجى سرعة تجديد الشهادة الصحية قبل موعد انتهائها لضمان استمرار العمل داخل المنشآت الغذائية.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
     },
@@ -63,7 +68,7 @@ export default function WhatsAppMessageDialog({
       enabled: hasCert,
       build: () =>
         `السلام عليكم أستاذ/ ${employee.name}.\n\nنحيطكم علماً بانتهاء صلاحية شهادتكم الصحية بتاريخ:\n${formatDate(
-          employee.healthCertExpiryDate!,
+          effectiveExpiryDate!,
           lang
         )}\n\nولا يجوز العمل داخل المنشآت الغذائية إلا بعد تجديد الشهادة الصحية.\n\nيرجى سرعة اتخاذ الإجراءات اللازمة.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
     },

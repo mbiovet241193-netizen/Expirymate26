@@ -343,7 +343,7 @@ export default function Settings() {
             ⬆️ {t('restore')}
           </button>
           <button className="btn btn-outline" onClick={() => setShowWhatsAppBackup(true)}>
-            🟢 {lang === 'ar' ? 'إرسال نسخة احتياطية عبر واتساب' : 'Send Backup via WhatsApp'}
+            🟢 {lang === 'ar' ? 'مشاركة نسخة احتياطية عبر واتساب' : 'Share Backup via WhatsApp'}
           </button>
           <input
             type="file"
@@ -360,8 +360,6 @@ export default function Settings() {
           lang={lang}
           doctorName={settings.doctorName}
           doctorCode={settings.doctorCode}
-          savedNumber={settings.backupWhatsAppNumber}
-          onSaveNumber={(number) => updateSettings({ backupWhatsAppNumber: number })}
           onClose={() => setShowWhatsAppBackup(false)}
         />
       )}
