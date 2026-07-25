@@ -7,6 +7,7 @@ import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
 import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
 import StatusBadge from '../components/common/StatusBadge';
+import CertificateStatusBadge from '../components/common/CertificateStatusBadge';
 import { exportToCsv, exportSectionsToCsv } from '../utils/export';
 import Modal from '../components/common/Modal';
 import Autocomplete from '../components/common/Autocomplete';
@@ -378,7 +379,7 @@ export default function Reports() {
                         <td>{r.employee!.name}</td>
                         <td>{r.cert.expiryDate}</td>
                         <td>
-                          <StatusBadge status={r.status} />
+                          <CertificateStatusBadge status={r.status} />
                         </td>
                       </tr>
                     ))}
@@ -392,7 +393,7 @@ export default function Reports() {
                       <div className="record-card-title">
                         {i + 1}. {r.employee!.name}
                       </div>
-                      <StatusBadge status={r.status} />
+                      <CertificateStatusBadge status={r.status} />
                     </div>
                     <div className="record-card-row">
                       <span>{lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date'}</span>
