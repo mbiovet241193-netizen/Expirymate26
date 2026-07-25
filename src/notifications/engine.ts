@@ -4,15 +4,9 @@
 import { BatchRepo, ProductRepo, EmployeeRepo, HealthCertificateRepo, NotificationLogRepo } from '../db/repositories';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
-import { notificationLine, DAILY_REMINDER_LINE, getDayPeriod, DR_DEJA_SIGNATURE } from '../assistant/messages';
+import { notificationLine, DAILY_REMINDER_LINE, drDejaNotificationIntro, DR_DEJA_SIGNATURE, type DoctorGender } from '../assistant/messages';
 import type { AppSettings } from '../types';
 import type { Lang } from '../i18n/translations';
-
-const NOTIFICATION_INTROS_BY_PERIOD: Record<string, { ar: string; en: string }> = {
-  morning: { ar: 'صباح الخير.', en: 'Good morning.' },
-  afternoon: { ar: 'مرحباً.', en: 'Hello.' },
-  evening: { ar: 'مساء الخير.', en: 'Good evening.' }
-};
 
 async function showNotification(title: string, body: string, route: string, params?: Record<string, string>) {
   if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return;
@@ -40,8 +34,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
   if (Notification.permission !== 'granted') return;
 
   const lang: Lang = settings.language;
-  const period = getDayPeriod();
-  const intro = NOTIFICATION_INTROS_BY_PERIOD[period][lang];
+  const intro = drDejaNotificationIntro(lang, settings.doctorGender, settings.doctorName);
 
   // --- Product expiry categories ---
   if (n.categories.expiredProducts || n.categories.halfLifeProducts || n.categories.expiringProducts) {
@@ -129,10 +122,9 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
 }
 
 /** Sends an immediate test notification, bypassing the daily dedup log. */
-export async function sendTestNotification(lang: Lang): Promise<boolean> {
+export async function sendTestNotification(lang: Lang, gender: DoctorGender = 'male', doctorName?: string): Promise<boolean> {
   if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') return false;
-  const period = getDayPeriod();
-  const intro = NOTIFICATION_INTROS_BY_PERIOD[period][lang];
+  const intro = drDejaNotificationIntro(lang, gender, doctorName);
   const body =
     lang === 'ar'
       ? `${intro}\nهذا إشعار تجريبي للتأكد من عمل الإشعارات بشكل صحيح.\n${DR_DEJA_SIGNATURE}`

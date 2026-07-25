@@ -65,7 +65,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DrDejaWelcomeCard lang={lang} gender={settings.doctorGender} items={summaryItems} totals={totals} />
+      <DrDejaWelcomeCard lang={lang} gender={settings.doctorGender} doctorName={settings.doctorName} items={summaryItems} totals={totals} />
 
       <h2 className="section-title">
         <span aria-hidden="true">⚡</span>

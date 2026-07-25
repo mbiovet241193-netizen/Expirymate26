@@ -53,7 +53,7 @@ export default function Settings() {
       setTestResult('denied');
       return;
     }
-    const ok = await sendTestNotification(lang);
+    const ok = await sendTestNotification(lang, settings.doctorGender, settings.doctorName);
     setTestResult(ok ? 'sent' : 'denied');
   };
 

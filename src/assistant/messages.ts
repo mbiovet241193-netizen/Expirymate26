@@ -17,62 +17,74 @@ export function getDayPeriod(date: Date = new Date()): DayPeriod {
   return 'evening';
 }
 
-const GREETINGS: Record<DayPeriod, { ar: Record<DoctorGender, string>; en: string }> = {
-  morning: {
-    ar: {
-      male: 'صباح الخير.\nأتمنى لك يوم عمل موفق.',
-      female: 'صباح الخير.\nأتمنى لكِ يوم عمل موفق.'
-    },
-    en: 'Good morning.\nWishing you a productive day.'
-  },
-  afternoon: {
-    ar: {
-      male: 'مرحباً.\nإليك ملخص حالة الجودة اليوم.',
-      female: 'مرحباً.\nإليكِ ملخص حالة الجودة اليوم.'
-    },
-    en: 'Hello.\nHere is today\u2019s quality status summary.'
-  },
-  evening: {
-    ar: {
-      male: 'مساء الخير.\nقبل إنهاء يوم العمل، إليك أهم الملاحظات.',
-      female: 'مساء الخير.\nقبل إنهاء يوم العمل، إليكِ أهم الملاحظات.'
-    },
-    en: 'Good evening.\nBefore wrapping up, here are today\u2019s key notes.'
+/**
+ * Builds the "يا دكتور/ة [name]" (or "Dr. [name]") address term used to
+ * personalize Dr. Deja's greetings. Falls back to a plain "دكتور/ة" / "Doctor"
+ * title when no doctor name is set in Settings.
+ */
+function doctorAddress(lang: Lang, gender: DoctorGender, doctorName?: string): string {
+  const name = doctorName?.trim();
+  if (lang === 'ar') {
+    const title = gender === 'female' ? 'دكتورة' : 'دكتور';
+    return name ? `يا ${title} ${name}` : `يا ${title}`;
   }
-};
-
-const NOTIFICATION_INTROS: Record<DayPeriod, { ar: Record<DoctorGender, string>; en: string }> = {
-  morning: {
-    ar: {
-      male: 'صباح الخير.\nلديك اليوم بعض العناصر التي تحتاج إلى المراجعة.',
-      female: 'صباح الخير.\nلديكِ اليوم بعض العناصر التي تحتاج إلى المراجعة.'
-    },
-    en: 'Good morning.\nA few items need your review today.'
-  },
-  afternoon: {
-    ar: {
-      male: 'مرحباً.\nإليك أحدث تنبيهات الجودة.',
-      female: 'مرحباً.\nإليكِ أحدث تنبيهات الجودة.'
-    },
-    en: 'Hello.\nHere are the latest quality alerts.'
-  },
-  evening: {
-    ar: {
-      male: 'مساء الخير.\nقبل إنهاء يوم العمل، يرجى مراجعة العناصر التالية.',
-      female: 'مساء الخير.\nقبل إنهاء يوم العمل، يرجى مراجعة العناصر التالية.'
-    },
-    en: 'Good evening.\nBefore ending the day, please review the following.'
-  }
-};
-
-export function drDejaGreeting(lang: Lang, gender: DoctorGender = 'male', date?: Date): string {
-  const g = GREETINGS[getDayPeriod(date)];
-  return lang === 'ar' ? g.ar[gender] : g.en;
+  return name ? `Dr. ${name}` : 'Doctor';
 }
 
-export function drDejaNotificationIntro(lang: Lang, gender: DoctorGender = 'male', date?: Date): string {
-  const g = NOTIFICATION_INTROS[getDayPeriod(date)];
-  return lang === 'ar' ? g.ar[gender] : g.en;
+const GREETING_OPENERS: Record<DayPeriod, { ar: string; en: string }> = {
+  morning: { ar: 'صباح الخير', en: 'Good morning' },
+  afternoon: { ar: 'مرحباً', en: 'Hello' },
+  evening: { ar: 'مساء الخير', en: 'Good evening' }
+};
+
+const GREETING_BODIES: Record<DayPeriod, { ar: Record<DoctorGender, string>; en: string }> = {
+  morning: {
+    ar: { male: 'أتمنى لك يوم عمل موفق.', female: 'أتمنى لكِ يوم عمل موفق.' },
+    en: 'Wishing you a productive day.'
+  },
+  afternoon: {
+    ar: { male: 'إليك ملخص حالة الجودة اليوم.', female: 'إليكِ ملخص حالة الجودة اليوم.' },
+    en: 'Here is today\u2019s quality status summary.'
+  },
+  evening: {
+    ar: { male: 'قبل إنهاء يوم العمل، إليك أهم الملاحظات.', female: 'قبل إنهاء يوم العمل، إليكِ أهم الملاحظات.' },
+    en: 'Before wrapping up, here are today\u2019s key notes.'
+  }
+};
+
+const NOTIFICATION_BODIES: Record<DayPeriod, { ar: Record<DoctorGender, string>; en: string }> = {
+  morning: {
+    ar: { male: 'لديك اليوم بعض العناصر التي تحتاج إلى المراجعة.', female: 'لديكِ اليوم بعض العناصر التي تحتاج إلى المراجعة.' },
+    en: 'A few items need your review today.'
+  },
+  afternoon: {
+    ar: { male: 'إليك أحدث تنبيهات الجودة.', female: 'إليكِ أحدث تنبيهات الجودة.' },
+    en: 'Here are the latest quality alerts.'
+  },
+  evening: {
+    ar: { male: 'قبل إنهاء يوم العمل، يرجى مراجعة العناصر التالية.', female: 'قبل إنهاء يوم العمل، يرجى مراجعة العناصر التالية.' },
+    en: 'Before ending the day, please review the following.'
+  }
+};
+
+/** Builds Dr. Deja's welcome-card greeting, personalized with the doctor's name when available. */
+export function drDejaGreeting(lang: Lang, gender: DoctorGender = 'male', doctorName?: string, date?: Date): string {
+  const period = getDayPeriod(date);
+  const opener = GREETING_OPENERS[period][lang];
+  const address = doctorAddress(lang, gender, doctorName);
+  const body = lang === 'ar' ? GREETING_BODIES[period].ar[gender] : GREETING_BODIES[period].en;
+  const openerLine = lang === 'ar' ? `${opener} ${address}.` : `${opener}, ${address}.`;
+  return `${openerLine}\n${body}`;
+}
+
+/** Builds the notification intro line, personalized with the doctor's name when available. */
+export function drDejaNotificationIntro(lang: Lang, gender: DoctorGender = 'male', doctorName?: string, date?: Date): string {
+  const period = getDayPeriod(date);
+  const opener = GREETING_OPENERS[period][lang];
+  const address = doctorAddress(lang, gender, doctorName);
+  const body = lang === 'ar' ? NOTIFICATION_BODIES[period].ar[gender] : NOTIFICATION_BODIES[period].en;
+  const openerLine = lang === 'ar' ? `${opener} ${address}.` : `${opener}, ${address}.`;
+  return `${openerLine}\n${body}`;
 }
 
 export const DR_DEJA_INTRO = {

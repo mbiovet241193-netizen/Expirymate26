@@ -17,11 +17,13 @@ export interface DrDejaTotalItem {
 export default function DrDejaWelcomeCard({
   lang,
   gender = 'male',
+  doctorName,
   items,
   totals
 }: {
   lang: Lang;
   gender?: DoctorGender;
+  doctorName?: string;
   items: DrDejaSummaryItem[];
   totals?: DrDejaTotalItem[];
 }) {
@@ -35,7 +37,7 @@ export default function DrDejaWelcomeCard({
         <img src="/assets/dr-deja.png" alt="Dr. Deja" loading="lazy" />
       </div>
       <div className="dr-deja-welcome-content">
-        <div className="dr-deja-greeting">{drDejaGreeting(lang, gender)}</div>
+        <div className="dr-deja-greeting">{drDejaGreeting(lang, gender, doctorName)}</div>
         <div className="dr-deja-intro">{intro}</div>
 
         {totals && totals.length > 0 && (
