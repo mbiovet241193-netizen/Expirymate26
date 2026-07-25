@@ -31,7 +31,7 @@ export default function ShelfLifeCalculator() {
   const result = useMemo(() => {
     if (!productionDate || !value) return null;
     const calc = calculateExpiry({ productionDate, shelfLifeValue: value, shelfLifeUnit: unit });
-    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate);
+    const status = computeBatchStatus(productionDate, calc.expiryDate, calc.halfLifeDate, value, unit);
     return { ...calc, ...status };
   }, [productionDate, value, unit]);
 

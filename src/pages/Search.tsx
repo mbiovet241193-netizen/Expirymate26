@@ -36,7 +36,7 @@ export default function Search() {
     return batches
       .map((b) => {
         const product = productMap.get(b.productId);
-        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+        const computed = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
         return { batch: b, product, ...computed };
       })
       .filter((r) => {
@@ -75,6 +75,7 @@ export default function Search() {
               <option value="before_half">{t('beforeHalf')}</option>
               <option value="after_half">{t('afterHalf')}</option>
               <option value="near_expiry">{t('within30Days')}</option>
+              <option value="expiring_soon">{t('expiringSoon')}</option>
               <option value="expired">{t('expiredProducts')}</option>
             </select>
           </div>

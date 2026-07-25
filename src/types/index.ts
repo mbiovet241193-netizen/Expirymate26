@@ -2,7 +2,7 @@
 
 export type ShelfLifeUnit = 'days' | 'months' | 'years';
 
-export type ProductStatus = 'before_half' | 'after_half' | 'near_expiry' | 'expired';
+export type ProductStatus = 'before_half' | 'after_half' | 'near_expiry' | 'expiring_soon' | 'expired';
 
 export interface Category {
   id: string;
@@ -90,6 +90,7 @@ export type ReportType =
   | 'full'
   | 'expired'
   | 'near_expiry'
+  | 'expiring_soon'
   | 'before_half'
   | 'after_half'
   | 'by_category'

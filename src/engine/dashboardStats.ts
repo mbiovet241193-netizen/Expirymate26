@@ -11,6 +11,7 @@ export interface DashboardStats {
   totalBatches: number;
   expired: number;
   within30: number;
+  expiringSoon: number;
   afterHalf: number;
   beforeHalf: number;
   nonConforming: number;
@@ -31,13 +32,15 @@ export async function computeDashboardStats(): Promise<DashboardStats> {
 
   let expired = 0;
   let within30 = 0;
+  let expiringSoon = 0;
   let afterHalf = 0;
   let beforeHalf = 0;
 
   batches.forEach((b: Batch) => {
-    const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+    const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
     if (status === 'expired') expired++;
     else if (status === 'near_expiry') within30++;
+    else if (status === 'expiring_soon') expiringSoon++;
     else if (status === 'after_half') afterHalf++;
     else beforeHalf++;
   });
@@ -60,6 +63,7 @@ export async function computeDashboardStats(): Promise<DashboardStats> {
     totalBatches: batches.length,
     expired,
     within30,
+    expiringSoon,
     afterHalf,
     beforeHalf,
     nonConforming: nc.length,

@@ -52,9 +52,9 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
     let halfLifeCount = 0;
     for (const b of batches) {
       if (!productById.has(b.productId)) continue;
-      const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate);
+      const { status } = computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit);
       if (status === 'expired') expiredCount++;
-      else if (status === 'near_expiry') expiringCount++;
+      else if (status === 'near_expiry' || status === 'expiring_soon') expiringCount++;
       else if (status === 'after_half') halfLifeCount++;
     }
 

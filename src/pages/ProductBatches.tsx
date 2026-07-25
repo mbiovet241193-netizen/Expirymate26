@@ -13,7 +13,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import Autocomplete from '../components/common/Autocomplete';
 
-const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'before_half', 'after_half'];
+const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'expiring_soon', 'before_half', 'after_half'];
 
 export default function ProductBatches() {
   const { t, lang } = useApp();
@@ -62,7 +62,9 @@ export default function ProductBatches() {
       list = list.filter((b) => productById.get(b.productId)?.categoryId === categoryFilter);
     }
     if (statusFilter) {
-      list = list.filter((b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate).status === statusFilter);
+      list = list.filter(
+        (b) => computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit).status === statusFilter
+      );
     }
 
     // FEFO: First Expired First Out -> sort ascending by expiry date (default, always on)
@@ -206,7 +208,9 @@ export default function ProductBatches() {
                   const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                     b.productionDate,
                     b.expiryDate,
-                    b.halfLifeDate
+                    b.halfLifeDate,
+                    b.shelfLifeValue,
+                    b.shelfLifeUnit
                   );
                   return (
                     <tr key={b.id}>
@@ -240,7 +244,9 @@ export default function ProductBatches() {
               const { remainingDays, consumptionPercent, status } = computeBatchStatus(
                 b.productionDate,
                 b.expiryDate,
-                b.halfLifeDate
+                b.halfLifeDate,
+                b.shelfLifeValue,
+                b.shelfLifeUnit
               );
               return (
                 <div className="expiry-card" key={b.id}>

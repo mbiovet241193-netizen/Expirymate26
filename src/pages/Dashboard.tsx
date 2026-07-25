@@ -45,6 +45,7 @@ export default function Dashboard() {
   const summaryItems: DrDejaSummaryItem[] = [
     { label: t('expiredProducts'), count: stats.expired, color: 'var(--danger)' },
     { label: t('within30Days'), count: stats.within30, color: 'var(--info)' },
+    { label: t('expiringSoon'), count: stats.expiringSoon, color: '#EF6C00' },
     { label: t('afterHalf'), count: stats.afterHalf, color: 'var(--warning)' },
     { label: t('nonConformingCount'), count: stats.nonConforming, color: 'var(--danger)' },
     { label: lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates', count: stats.expiredCerts, color: 'var(--danger)' },

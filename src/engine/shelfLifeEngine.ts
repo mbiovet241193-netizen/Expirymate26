@@ -133,11 +133,26 @@ export interface BatchStatusResult {
   status: ProductStatus;
 }
 
-/** Computes live status of a batch (remaining days, consumption %, and color-coded status). */
+/**
+ * Computes live status of a batch (remaining days, consumption %, and color-coded status).
+ *
+ * Both short (<=3 months) and long (>3 months) shelf-life products follow the SAME lifecycle:
+ *   Within Shelf Life -> Passed Half Shelf Life -> [final warning stage] -> Expired
+ * The half-life check always runs before the final warning stage for both cases.
+ * The only difference is the final warning stage's threshold/label:
+ *   - Long shelf-life (>3 months):  "Will Expire Within 30 Days" -> remainingDays <= 30
+ *   - Short shelf-life (<=3 months): "Expiring Soon" -> remainingDays between 1 and 9 (inclusive)
+ *
+ * shelfLifeValue/shelfLifeUnit determine which rule applies, using the same <=3-months
+ * threshold as calculateExpiry (shelfLifeInMonths). If omitted, the long-life (30-day) rule
+ * is used as a safe default.
+ */
 export function computeBatchStatus(
   productionDate: string,
   expiryDate: string,
   halfLifeDate: string,
+  shelfLifeValue?: number,
+  shelfLifeUnit?: ShelfLifeUnit,
   today: Date = new Date()
 ): BatchStatusResult {
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -152,9 +167,22 @@ export function computeBatchStatus(
   const elapsedDays = Math.round((todayMid.getTime() - prod.getTime()) / MS_PER_DAY);
   const consumptionPercent = Math.min(100, Math.max(0, (elapsedDays / totalLifeDays) * 100));
 
+  const usesShortRule =
+    shelfLifeValue !== undefined && shelfLifeUnit !== undefined
+      ? shelfLifeInMonths(shelfLifeValue, shelfLifeUnit) <= 3
+      : false;
+
   let status: ProductStatus;
   if (remainingDays < 0) {
     status = 'expired';
+  } else if (usesShortRule) {
+    if (remainingDays >= 1 && remainingDays <= 9) {
+      status = 'expiring_soon';
+    } else if (todayMid.getTime() > half.getTime()) {
+      status = 'after_half';
+    } else {
+      status = 'before_half';
+    }
   } else if (remainingDays <= 30) {
     status = 'near_expiry';
   } else if (todayMid.getTime() > half.getTime()) {
@@ -170,6 +198,7 @@ export const STATUS_COLORS: Record<ProductStatus, string> = {
   before_half: '#2E7D5B', // green
   after_half: '#C9A400', // yellow/amber
   near_expiry: '#1565C0', // blue
+  expiring_soon: '#EF6C00', // orange
   expired: '#C62828' // red
 };
 
@@ -177,6 +206,7 @@ export const STATUS_LABELS_EN: Record<ProductStatus, string> = {
   before_half: 'Before Half Shelf-Life',
   after_half: 'After Half Shelf-Life',
   near_expiry: '30 Days or Less',
+  expiring_soon: 'Expiring Soon',
   expired: 'Expired'
 };
 
@@ -184,6 +214,7 @@ export const STATUS_LABELS_AR: Record<ProductStatus, string> = {
   before_half: 'قبل نصف مدة الصلاحية',
   after_half: 'بعد نصف مدة الصلاحية',
   near_expiry: 'أقل من 30 يوم',
+  expiring_soon: 'ستنتهي قريباً',
   expired: 'منتهي الصلاحية'
 };
 

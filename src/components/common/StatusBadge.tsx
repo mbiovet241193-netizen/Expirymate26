@@ -7,6 +7,7 @@ const DOTS: Record<ProductStatus, string> = {
   before_half: '🟢',
   after_half: '🟡',
   near_expiry: '🔵',
+  expiring_soon: '🟠',
   expired: '🔴'
 };
 

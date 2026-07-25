@@ -17,6 +17,7 @@ const REPORT_TYPES: { type: ReportType; ar: string; en: string; icon: string }[]
   { type: 'full', ar: 'التقرير الشامل الشهري', en: 'Monthly Comprehensive Report', icon: '📋' },
   { type: 'expired', ar: 'منتجات منتهية', en: 'Expired Products', icon: '🔴' },
   { type: 'near_expiry', ar: 'خلال 30 يوم', en: 'Within 30 Days', icon: '🔵' },
+  { type: 'expiring_soon', ar: 'ستنتهي قريباً', en: 'Expiring Soon', icon: '🟠' },
   { type: 'before_half', ar: 'قبل نصف الصلاحية', en: 'Before Half Shelf-Life', icon: '🟢' },
   { type: 'after_half', ar: 'بعد نصف الصلاحية', en: 'After Half Shelf-Life', icon: '🟡' },
   { type: 'by_category', ar: 'حسب الفئة', en: 'By Category', icon: '🗂️' },
@@ -64,7 +65,11 @@ export default function Reports() {
   };
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  const computedBatches = batches.map((b) => ({ batch: b, product: productMap.get(b.productId), ...computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate) }));
+  const computedBatches = batches.map((b) => ({
+    batch: b,
+    product: productMap.get(b.productId),
+    ...computeBatchStatus(b.productionDate, b.expiryDate, b.halfLifeDate, b.shelfLifeValue, b.shelfLifeUnit)
+  }));
 
   const monthlyReceivingRows = (dateStr: string) => {
     const ref = new Date(dateStr);
@@ -123,6 +128,7 @@ export default function Reports() {
       infoRow(lang === 'ar' ? 'إجمالي الدفعات' : 'Total Batches', s.totalBatches),
       alertRow(lang === 'ar' ? 'منتجات منتهية الصلاحية' : 'Expired Products', s.expired),
       alertRow(lang === 'ar' ? 'منتجات خلال 30 يومًا' : 'Products Expiring Within 30 Days', s.within30),
+      alertRow(lang === 'ar' ? 'منتجات ستنتهي قريباً (قصيرة الصلاحية)' : 'Products Expiring Soon (Short Shelf-Life)', s.expiringSoon),
       alertRow(lang === 'ar' ? 'منتجات بعد نصف الصلاحية' : 'Products After Half Shelf-Life', s.afterHalf),
       infoRow(lang === 'ar' ? 'منتجات قبل نصف الصلاحية' : 'Products Before Half Shelf-Life', s.beforeHalf),
       alertRow(lang === 'ar' ? 'منتجات غير مطابقة' : 'Non-Conforming Products', s.nonConforming),
@@ -136,6 +142,7 @@ export default function Reports() {
     let list = computedBatches.filter((r) => r.product);
     if (type === 'expired') list = list.filter((r) => r.status === 'expired');
     if (type === 'near_expiry') list = list.filter((r) => r.status === 'near_expiry');
+    if (type === 'expiring_soon') list = list.filter((r) => r.status === 'expiring_soon');
     if (type === 'before_half') list = list.filter((r) => r.status === 'before_half');
     if (type === 'after_half') list = list.filter((r) => r.status === 'after_half');
     if (type === 'by_category' && categoryFilter) list = list.filter((r) => r.product!.categoryId === categoryFilter);

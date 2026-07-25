@@ -66,7 +66,13 @@ export default function ReceivingRegister() {
           });
           merged.expiryDate = calc.expiryDate;
           merged.halfLifeDate = calc.halfLifeDate;
-          merged.status = computeBatchStatus(merged.productionDate, calc.expiryDate, calc.halfLifeDate).status;
+          merged.status = computeBatchStatus(
+            merged.productionDate,
+            calc.expiryDate,
+            calc.halfLifeDate,
+            merged.shelfLifeValue,
+            merged.shelfLifeUnit
+          ).status;
         }
         return merged;
       })
