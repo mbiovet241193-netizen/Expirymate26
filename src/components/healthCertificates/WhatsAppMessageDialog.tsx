@@ -21,10 +21,14 @@ function formatDate(iso: string, lang: Lang): string {
   }
 }
 
-async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
-  return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+function dataUrlToFile(dataUrl: string, filename: string): File {
+  const [header, base64] = dataUrl.split(',');
+  const mimeMatch = header.match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], filename, { type: mime });
 }
 
 export default function WhatsAppMessageDialog({
@@ -92,13 +96,23 @@ export default function WhatsAppMessageDialog({
     window.open(url, '_blank');
   };
 
-  const attachImage = async () => {
+  const attachImage = () => {
     if (!certificateImageDataUrl) return;
     try {
-      const file = await dataUrlToFile(certificateImageDataUrl, `${employee.code}-health-certificate.jpg`);
+      const file = dataUrlToFile(certificateImageDataUrl, `${employee.code}-health-certificate.jpg`);
       const canShareFiles = (navigator as any).canShare && (navigator as any).canShare({ files: [file] });
       if (navigator.share && canShareFiles) {
-        await navigator.share({ text: messageText, files: [file] });
+        // Called synchronously right after the click (no awaited work before it),
+        // so the browser still treats this as a direct user gesture.
+        navigator.share({ text: messageText, files: [file] }).catch((err: any) => {
+          if (err?.name === 'AbortError') return; // user closed the share sheet — not an error
+          setShareNotice(
+            lang === 'ar'
+              ? 'متصفحك لا يدعم إرفاق الصور مباشرة داخل واتساب. هيتم فتح واتساب بالرسالة، ويمكنك إرفاق صورة الشهادة يدويًا.'
+              : "Your browser doesn't support attaching images directly to WhatsApp. WhatsApp will open with the message — please attach the certificate image manually."
+          );
+          openWhatsApp();
+        });
         return;
       }
     } catch {
