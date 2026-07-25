@@ -77,9 +77,12 @@ export default function WhatsAppBackupDialog({
     setNoticeIsError(false);
     setNotice(
       lang === 'ar'
-        ? 'المشاركة المباشرة عبر واتساب غير مدعومة على هذا الجهاز/المتصفح. تم حفظ ملف النسخة الاحتياطية على جهازك — يمكنك فتح واتساب وإرفاقه يدويًا.'
-        : "Direct WhatsApp sharing isn't supported on this device/browser. The backup file has been saved to your device — you can open WhatsApp and attach it manually."
+        ? 'تم تنزيل ملف النسخة الاحتياطية على جهازك. هيتم فتح واتساب بالرسالة، اختر الشخص وأرفق الملف الذي تم تنزيله يدويًا.'
+        : 'The backup file has been downloaded to your device. WhatsApp will open with the message ready — choose the recipient and attach the downloaded file manually.'
     );
+    // No phone number here on purpose: this opens WhatsApp's own contact picker
+    // so the user chooses the recipient themselves, same as the image-share fallback.
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const share = () => {
