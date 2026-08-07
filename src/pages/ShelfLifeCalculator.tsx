@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import type { Product, ShelfLifeUnit } from '../types';
 import { ProductRepo } from '../db/repositories';
 import { calculateExpiry, computeBatchStatus } from '../engine/shelfLifeEngine';
+import DateInput from '../components/common/DateInput';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
 
@@ -52,7 +53,7 @@ export default function ShelfLifeCalculator() {
           </div>
           <div className="form-field">
             <label>{t('productionDate')}</label>
-            <input type="date" value={productionDate} onChange={(e) => setProductionDate(e.target.value)} />
+            <DateInput value={productionDate} onChange={setProductionDate} />
           </div>
           <div className="form-field">
             <label>{t('shelfLife')}</label>

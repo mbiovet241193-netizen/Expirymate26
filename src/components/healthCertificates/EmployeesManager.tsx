@@ -6,6 +6,7 @@ import { generateId } from '../../db/db';
 import type { Employee, HealthCertificate } from '../../types';
 import { computeCertificateStatus } from '../../engine/certificateEngine';
 import Modal from '../common/Modal';
+import DateInput from '../common/DateInput';
 import HealthCertificateReport from './HealthCertificateReport';
 import WhatsAppMessageDialog from './WhatsAppMessageDialog';
 import BulkWhatsAppDialog from './BulkWhatsAppDialog';
@@ -433,7 +434,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'تاريخ انتهاء الشهادة الصحية' : 'Health Certificate Expiry Date'}</label>
-              <input type="date" value={healthCertExpiryDate} onChange={(e) => setHealthCertExpiryDate(e.target.value)} />
+              <DateInput value={healthCertExpiryDate} onChange={setHealthCertExpiryDate} />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'رقم التأمين الطبي' : 'Medical Insurance Number'}</label>

@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { CategoryRepo, ReceivingRepo, ReportRepo, ProductRepo, BatchRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, Product, ReceivingRow, ReceivingSession, ShelfLifeUnit } from '../types';
+import DateInput from '../components/common/DateInput';
 import { calculateExpiry, computeBatchStatus } from '../engine/shelfLifeEngine';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
@@ -218,7 +219,7 @@ export default function ReceivingRegister() {
           </div>
           <div className="form-field">
             <label>{lang === 'ar' ? 'تاريخ الاستلام' : 'Receiving Date'}</label>
-            <input type="date" value={receivingDate} onChange={(e) => setReceivingDate(e.target.value)} />
+            <DateInput value={receivingDate} onChange={setReceivingDate} />
           </div>
           <div className="form-field">
             <label>{lang === 'ar' ? 'وقت الاستلام' : 'Receiving Time'}</label>
@@ -292,7 +293,7 @@ export default function ReceivingRegister() {
                     />
                   </td>
                   <td>
-                    <input type="date" value={row.productionDate} onChange={(e) => updateRow(row.id, { productionDate: e.target.value })} />
+                    <DateInput value={row.productionDate} onChange={(v) => updateRow(row.id, { productionDate: v })} />
                   </td>
                   <td style={{ display: 'flex', gap: 4 }}>
                     <input
@@ -363,7 +364,7 @@ export default function ReceivingRegister() {
               </div>
               <div className="form-field">
                 <label>{t('productionDate')}</label>
-                <input type="date" value={row.productionDate} onChange={(e) => updateRow(row.id, { productionDate: e.target.value })} />
+                <DateInput value={row.productionDate} onChange={(v) => updateRow(row.id, { productionDate: v })} />
               </div>
               <div className="form-field">
                 <label>{t('shelfLife')}</label>

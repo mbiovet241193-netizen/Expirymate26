@@ -5,6 +5,7 @@ import { generateId } from '../db/db';
 import type { CertificateStatus, Employee, HealthCertificate } from '../types';
 import { computeCertificateStatus, CERTIFICATE_STATUS_LABELS } from '../engine/certificateEngine';
 import CertificateStatusBadge from '../components/common/CertificateStatusBadge';
+import DateInput from '../components/common/DateInput';
 import Modal from '../components/common/Modal';
 import { useRouter } from '../router/Router';
 import EmployeesManager from '../components/healthCertificates/EmployeesManager';
@@ -28,7 +29,8 @@ export default function HealthCertificates() {
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<HealthCertificate | null>(null);
-  const [employeeCodeInput, setEmployeeCodeInput] = useState('');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [employeePickerQuery, setEmployeePickerQuery] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [notes, setNotes] = useState('');
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
@@ -52,9 +54,28 @@ export default function HealthCertificates() {
   }, []);
 
   const employeeById = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
-  const employeeByCode = useMemo(() => new Map(employees.map((e) => [e.code.trim().toLowerCase(), e])), [employees]);
 
-  const matchedEmployee = employeeByCode.get(employeeCodeInput.trim().toLowerCase());
+  const selectedEmployees = useMemo(
+    () => selectedEmployeeIds.map((id) => employeeById.get(id)).filter((e): e is Employee => !!e),
+    [selectedEmployeeIds, employeeById]
+  );
+
+  const employeePickerResults = useMemo(() => {
+    const q = employeePickerQuery.trim().toLowerCase();
+    const list = q ? employees.filter((e) => e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q)) : employees;
+    return list.slice(0, 30);
+  }, [employees, employeePickerQuery]);
+
+  // Auto-fills the expiry date from the employee's own record when exactly one
+  // employee is selected and the date hasn't been entered yet - never overrides
+  // a date the user already typed or picked.
+  useEffect(() => {
+    if (selectedEmployeeIds.length === 1 && !expiryDate) {
+      const emp = employeeById.get(selectedEmployeeIds[0]);
+      if (emp?.healthCertExpiryDate) setExpiryDate(emp.healthCertExpiryDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmployeeIds]);
 
   const siteRecords = useMemo(() => {
     let list = certificates.filter((c) => c.siteName === siteFilter);
@@ -73,7 +94,8 @@ export default function HealthCertificates() {
 
   const openAdd = () => {
     setEditing(null);
-    setEmployeeCodeInput('');
+    setSelectedEmployeeIds([]);
+    setEmployeePickerQuery('');
     setExpiryDate('');
     setNotes('');
     setImageDataUrl(undefined);
@@ -82,12 +104,17 @@ export default function HealthCertificates() {
 
   const openEdit = (c: HealthCertificate) => {
     setEditing(c);
-    const emp = employeeById.get(c.employeeId);
-    setEmployeeCodeInput(emp?.code ?? '');
+    setSelectedEmployeeIds([c.employeeId]);
+    setEmployeePickerQuery('');
     setExpiryDate(c.expiryDate);
     setNotes(c.notes ?? '');
     setImageDataUrl(c.imageDataUrl);
     setShowModal(true);
+  };
+
+  const toggleEmployeeSelection = (id: string) => {
+    if (editing) return; // editing an existing certificate always targets a single employee
+    setSelectedEmployeeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const onImageSelected = (file: File | undefined) => {
@@ -98,19 +125,28 @@ export default function HealthCertificates() {
   };
 
   const save = async () => {
-    if (!matchedEmployee || !expiryDate || !siteFilter) return;
-    const cert: HealthCertificate = editing
-      ? { ...editing, employeeId: matchedEmployee.id, siteName: siteFilter, expiryDate, notes, imageDataUrl }
-      : {
+    if (selectedEmployees.length === 0 || !expiryDate || !siteFilter) return;
+    if (editing) {
+      const emp = selectedEmployees[0];
+      const cert: HealthCertificate = { ...editing, employeeId: emp.id, siteName: siteFilter, expiryDate, notes, imageDataUrl };
+      await HealthCertificateRepo.save(cert);
+    } else {
+      // Adds the same certificate (site, expiry date, image, notes) as an
+      // individual record for every selected employee - e.g. a group health
+      // checkup where several employees are certified on the same date.
+      for (const emp of selectedEmployees) {
+        const cert: HealthCertificate = {
           id: generateId(),
           siteName: siteFilter,
-          employeeId: matchedEmployee.id,
+          employeeId: emp.id,
           expiryDate,
           notes,
           imageDataUrl,
           createdAt: new Date().toISOString()
         };
-    await HealthCertificateRepo.save(cert);
+        await HealthCertificateRepo.save(cert);
+      }
+    }
     setShowModal(false);
     load();
   };
@@ -366,32 +402,104 @@ export default function HealthCertificates() {
       {showModal && (
         <Modal title={editing ? t('edit') : lang === 'ar' ? 'إضافة شهادة' : 'Add Certificate'} onClose={() => setShowModal(false)}>
           <div className="form-grid">
-            <div className="form-field">
-              <label>{lang === 'ar' ? 'كود الموظف' : 'Employee Code'}</label>
-              <Autocomplete
-                freeText
-                value={employeeCodeInput}
-                onChange={setEmployeeCodeInput}
-                options={employees.map((e) => ({ value: e.code, label: e.code, sublabel: e.name }))}
-                placeholder={lang === 'ar' ? 'اكتب كود أو اسم الموظف' : 'Type employee code or name'}
-              />
-              {!matchedEmployee && employeeCodeInput.trim() && (
-                <div style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>
-                  {lang === 'ar' ? 'كود غير موجود - أضِفه أولًا من "إدارة الموظفين".' : 'Code not found - add it first via "Manage Employees".'}
+            {editing ? (
+              <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                <label>{lang === 'ar' ? 'الموظف' : 'Employee'}</label>
+                {selectedEmployees[0] && (
+                  <div className="card" style={{ padding: 10, fontSize: '0.85rem', display: 'grid', gap: 4 }}>
+                    <div>
+                      <strong>{selectedEmployees[0].name}</strong> ({selectedEmployees[0].code})
+                    </div>
+                    <div>
+                      {lang === 'ar' ? 'الوظيفة' : 'Job Title'}: {selectedEmployees[0].jobTitle || '—'}
+                    </div>
+                    <div>
+                      {lang === 'ar' ? 'الموبايل' : 'Mobile'}: {selectedEmployees[0].mobilePhone || '—'}
+                    </div>
+                    <div>
+                      {lang === 'ar' ? 'رقم التأمين' : 'Insurance No.'}: {selectedEmployees[0].insuranceNumber || '—'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                <label>{lang === 'ar' ? 'الموظفون (يمكن اختيار أكثر من موظف)' : 'Employees (multiple selection allowed)'}</label>
+                <Autocomplete
+                  freeText
+                  value={employeePickerQuery}
+                  onChange={setEmployeePickerQuery}
+                  options={employees.map((e) => ({ value: e.code, label: e.code, sublabel: e.name }))}
+                  placeholder={lang === 'ar' ? 'ابحث بالكود أو الاسم' : 'Search by code or name'}
+                />
+                <div
+                  style={{
+                    maxHeight: 160,
+                    overflowY: 'auto',
+                    border: '1px solid var(--outline-variant)',
+                    borderRadius: 8,
+                    marginTop: 6
+                  }}
+                >
+                  {employeePickerResults.length === 0 ? (
+                    <div style={{ padding: 10, fontSize: '0.8rem', color: 'var(--on-surface-variant)' }}>
+                      {lang === 'ar' ? 'لا يوجد موظفون مطابقون' : 'No matching employees'}
+                    </div>
+                  ) : (
+                    employeePickerResults.map((e) => (
+                      <label
+                        key={e.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '6px 10px',
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--outline-variant)'
+                        }}
+                      >
+                        <input type="checkbox" checked={selectedEmployeeIds.includes(e.id)} onChange={() => toggleEmployeeSelection(e.id)} />
+                        <span>
+                          {e.name} <span style={{ color: 'var(--on-surface-variant)' }}>({e.code})</span>
+                        </span>
+                      </label>
+                    ))
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="form-field">
-              <label>{lang === 'ar' ? 'اسم الموظف' : 'Employee Name'}</label>
-              <input value={matchedEmployee?.name ?? ''} disabled />
-            </div>
-            <div className="form-field">
-              <label>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</label>
-              <input value={matchedEmployee?.jobTitle ?? ''} disabled />
-            </div>
+
+                {selectedEmployees.length > 0 && (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--on-surface-variant)' }}>
+                      {lang === 'ar' ? `الموظفون المحددون (${selectedEmployees.length})` : `Selected Employees (${selectedEmployees.length})`}
+                    </div>
+                    {selectedEmployees.map((e) => (
+                      <div
+                        key={e.id}
+                        className="card"
+                        style={{ padding: 8, fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+                      >
+                        <div>
+                          <div>
+                            <strong>{e.name}</strong> ({e.code})
+                          </div>
+                          <div style={{ color: 'var(--on-surface-variant)' }}>
+                            {lang === 'ar' ? 'الوظيفة' : 'Job'}: {e.jobTitle || '—'} · {lang === 'ar' ? 'موبايل' : 'Mobile'}:{' '}
+                            {e.mobilePhone || '—'} · {lang === 'ar' ? 'تأمين' : 'Insurance'}: {e.insuranceNumber || '—'}
+                          </div>
+                        </div>
+                        <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => toggleEmployeeSelection(e.id)}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="form-field">
               <label>{lang === 'ar' ? 'تاريخ انتهاء الشهادة' : 'Certificate Expiry Date'}</label>
-              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+              <DateInput value={expiryDate} onChange={setExpiryDate} />
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>{lang === 'ar' ? 'ملاحظات (اختياري)' : 'Notes (optional)'}</label>
@@ -434,7 +542,7 @@ export default function HealthCertificates() {
             <button className="btn btn-outline" onClick={() => setShowModal(false)}>
               {t('cancel')}
             </button>
-            <button className="btn btn-primary" onClick={save} disabled={!matchedEmployee || !expiryDate}>
+            <button className="btn btn-primary" onClick={save} disabled={selectedEmployees.length === 0 || !expiryDate}>
               {t('save')}
             </button>
           </div>

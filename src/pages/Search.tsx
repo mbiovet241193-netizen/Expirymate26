@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { BatchRepo, CategoryRepo, ProductRepo } from '../db/repositories';
 import type { Batch, Category, Product, ProductStatus } from '../types';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import DateInput from '../components/common/DateInput';
 import StatusBadge from '../components/common/StatusBadge';
 import Autocomplete from '../components/common/Autocomplete';
 
@@ -81,7 +82,7 @@ export default function Search() {
           </div>
           <div className="form-field">
             <label>{lang === 'ar' ? 'الانتهاء قبل تاريخ' : 'Expiry Before'}</label>
-            <input type="date" value={beforeDate} onChange={(e) => setBeforeDate(e.target.value)} />
+            <DateInput value={beforeDate} onChange={setBeforeDate} />
           </div>
         </div>
       </div>

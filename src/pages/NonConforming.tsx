@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { NonConformingRepo, ReportRepo, ProductRepo, CategoryRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, NonConformingDecision, NonConformingRecord, Product } from '../types';
+import DateInput from '../components/common/DateInput';
 import Modal from '../components/common/Modal';
 import Autocomplete from '../components/common/Autocomplete';
 import { exportToCsv } from '../utils/export';
@@ -396,7 +397,7 @@ export default function NonConforming() {
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'التاريخ' : 'Date'}</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <DateInput value={date} onChange={setDate} />
             </div>
             <div className="form-field" style={{ gridColumn: '1 / -1' }}>
               <label>{lang === 'ar' ? 'السبب' : 'Reason'}</label>
@@ -451,7 +452,7 @@ export default function NonConforming() {
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'تاريخ التقرير' : 'Report Date'}</label>
-              <input type="date" value={setupDate} onChange={(e) => setSetupDate(e.target.value)} />
+              <DateInput value={setupDate} onChange={setSetupDate} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>

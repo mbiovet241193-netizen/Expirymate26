@@ -12,6 +12,7 @@ import { calculateExpiry, computeBatchStatus, STATUS_LABELS_AR, STATUS_LABELS_EN
 import StatusBadge from '../components/common/StatusBadge';
 import Modal from '../components/common/Modal';
 import Autocomplete from '../components/common/Autocomplete';
+import DateInput from '../components/common/DateInput';
 
 const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'expiring_soon', 'before_half', 'after_half'];
 
@@ -302,7 +303,7 @@ export default function ProductBatches() {
             )}
             <div className="form-field">
               <label>{t('productionDate')}</label>
-              <input type="date" value={productionDate} onChange={(e) => setProductionDate(e.target.value)} />
+              <DateInput value={productionDate} onChange={setProductionDate} />
             </div>
           </div>
 

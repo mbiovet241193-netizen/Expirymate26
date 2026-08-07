@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Batch, Category, Employee, HealthCertificate, NonConformingRecord, Product, ReceivingSession, ReportType } from '../types';
+import DateInput from '../components/common/DateInput';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
 import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
@@ -754,7 +755,7 @@ export default function Reports() {
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'تاريخ التقرير' : 'Report Date'}</label>
-              <input type="date" value={setupDate} onChange={(e) => setSetupDate(e.target.value)} />
+              <DateInput value={setupDate} onChange={setSetupDate} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
