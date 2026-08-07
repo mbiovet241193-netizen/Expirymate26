@@ -2,34 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Modal from '../common/Modal';
 import type { Employee } from '../../types';
 import type { Lang } from '../../i18n/translations';
-
-type MessageOption = 'expiring' | 'expired' | 'insurance' | 'custom';
-
-function toWhatsAppNumber(raw: string): string | null {
-  const digits = raw.replace(/[^\d]/g, '');
-  if (!digits) return null;
-  if (digits.startsWith('20')) return digits; // already has Egypt country code
-  if (digits.startsWith('0')) return `20${digits.slice(1)}`; // local format 0XXXXXXXXXX
-  return digits; // assume already includes a country code
-}
-
-function formatDate(iso: string, lang: Lang): string {
-  try {
-    return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB');
-  } catch {
-    return iso;
-  }
-}
-
-function dataUrlToFile(dataUrl: string, filename: string): File {
-  const [header, base64] = dataUrl.split(',');
-  const mimeMatch = header.match(/:(.*?);/);
-  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new File([bytes], filename, { type: mime });
-}
+import { type MessageOption, toWhatsAppNumber, dataUrlToFile, buildWhatsAppTemplates } from '../../utils/whatsappTemplates';
 
 export default function WhatsAppMessageDialog({
   employee,
@@ -53,42 +26,16 @@ export default function WhatsAppMessageDialog({
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const whatsappNumber = employee.mobilePhone ? toWhatsAppNumber(employee.mobilePhone) : null;
-  const effectiveExpiryDate = certificateExpiryDate ?? employee.healthCertExpiryDate;
-  const hasCert = !!effectiveExpiryDate;
-  const hasInsurance = !!employee.insuranceNumber;
-
-  const templates: Record<Exclude<MessageOption, 'custom'>, { label: string; enabled: boolean; build: () => string }> = {
-    expiring: {
-      label: lang === 'ar' ? 'شهادة صحية على وشك الانتهاء' : 'Health Certificate Expiring Soon',
-      enabled: hasCert,
-      build: () =>
-        `السلام عليكم أستاذ/ ${employee.name}.\n\nنود تذكيركم بأن شهادتكم الصحية ستنتهي بتاريخ:\n${formatDate(
-          effectiveExpiryDate!,
-          lang
-        )}\n\nيرجى سرعة تجديد الشهادة الصحية قبل موعد انتهائها لضمان استمرار العمل داخل المنشآت الغذائية.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
-    },
-    expired: {
-      label: lang === 'ar' ? 'شهادة صحية منتهية' : 'Health Certificate Expired',
-      enabled: hasCert,
-      build: () =>
-        `السلام عليكم أستاذ/ ${employee.name}.\n\nنحيطكم علماً بانتهاء صلاحية شهادتكم الصحية بتاريخ:\n${formatDate(
-          effectiveExpiryDate!,
-          lang
-        )}\n\nولا يجوز العمل داخل المنشآت الغذائية إلا بعد تجديد الشهادة الصحية.\n\nيرجى سرعة اتخاذ الإجراءات اللازمة.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
-    },
-    insurance: {
-      label: lang === 'ar' ? 'رقم التأمين الطبي' : 'Medical Insurance Card Number',
-      enabled: hasInsurance,
-      build: () =>
-        `السلام عليكم أستاذ/ ${employee.name}.\n\nبناءً على طلبكم، نرسل لكم رقم كارت التأمين الطبي الخاص بكم:\n${employee.insuranceNumber}\n\nمع خالص تمنياتنا لكم بدوام الصحة والعافية.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
-    }
-  };
+  const templates = useMemo(
+    () => buildWhatsAppTemplates(employee, companyName, lang, certificateExpiryDate),
+    [employee, companyName, lang, certificateExpiryDate]
+  );
 
   const messageText = useMemo(() => {
     if (option === 'custom') return customText;
     if (option) return templates[option].build();
     return '';
-  }, [option, customText, employee, companyName, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [option, customText, templates]);
 
   const openWhatsApp = () => {
     if (!whatsappNumber) return;

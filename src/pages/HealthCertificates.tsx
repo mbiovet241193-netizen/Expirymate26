@@ -261,7 +261,7 @@ export default function HealthCertificates() {
                 {siteRecords.map((c) => {
                   const emp = employeeById.get(c.employeeId);
                   const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
-                  const needsContact = (status === 'near_expiry' || status === 'expired') && !!emp?.mobilePhone;
+                  const canContact = !!emp?.mobilePhone;
                   return (
                     <tr key={c.id}>
                       <td>{emp?.code ?? '—'}</td>
@@ -273,16 +273,23 @@ export default function HealthCertificates() {
                         <CertificateStatusBadge status={status} />
                       </td>
                       <td style={{ display: 'flex', gap: 8 }}>
-                        {needsContact && (
-                          <button
-                            className="icon-btn"
-                            style={{ width: 30, height: 30, fontSize: '0.85rem' }}
-                            onClick={() => setWhatsappTarget(c)}
-                            title={lang === 'ar' ? 'إرسال رسالة واتساب' : 'Send WhatsApp message'}
-                          >
-                            🟢
-                          </button>
-                        )}
+                        <button
+                          className="icon-btn"
+                          style={{ width: 30, height: 30, fontSize: '0.85rem' }}
+                          disabled={!canContact}
+                          onClick={() => setWhatsappTarget(c)}
+                          title={
+                            canContact
+                              ? lang === 'ar'
+                                ? 'إرسال رسالة واتساب'
+                                : 'Send WhatsApp message'
+                              : lang === 'ar'
+                              ? 'لا يوجد رقم موبايل مسجل لهذا الموظف'
+                              : 'No mobile number on file for this employee'
+                          }
+                        >
+                          🟢
+                        </button>
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(c)}>
                           {t('edit')}
                         </button>
@@ -301,7 +308,7 @@ export default function HealthCertificates() {
             {siteRecords.map((c) => {
               const emp = employeeById.get(c.employeeId);
               const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
-              const needsContact = (status === 'near_expiry' || status === 'expired') && !!emp?.mobilePhone;
+              const canContact = !!emp?.mobilePhone;
               return (
                 <div className="record-card" key={c.id}>
                   <div className="record-card-header">
@@ -325,16 +332,23 @@ export default function HealthCertificates() {
                     <span>{remainingDays}</span>
                   </div>
                   <div className="record-card-actions">
-                    {needsContact && (
-                      <button
-                        className="icon-btn"
-                        style={{ width: 30, height: 30, fontSize: '0.85rem' }}
-                        onClick={() => setWhatsappTarget(c)}
-                        title={lang === 'ar' ? 'إرسال رسالة واتساب' : 'Send WhatsApp message'}
-                      >
-                        🟢
-                      </button>
-                    )}
+                    <button
+                      className="icon-btn"
+                      style={{ width: 30, height: 30, fontSize: '0.85rem' }}
+                      disabled={!canContact}
+                      onClick={() => setWhatsappTarget(c)}
+                      title={
+                        canContact
+                          ? lang === 'ar'
+                            ? 'إرسال رسالة واتساب'
+                            : 'Send WhatsApp message'
+                          : lang === 'ar'
+                          ? 'لا يوجد رقم موبايل مسجل لهذا الموظف'
+                          : 'No mobile number on file for this employee'
+                      }
+                    >
+                      🟢
+                    </button>
                     <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => openEdit(c)}>
                       {t('edit')}
                     </button>
