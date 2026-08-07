@@ -2,7 +2,7 @@
 // Offline-first, cache-first strategy for the app shell.
 // No external network calls are ever made by this app.
 
-const CACHE_NAME = 'expirymate-cache-v3';
+const CACHE_NAME = 'expirymate-cache-v4';
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
