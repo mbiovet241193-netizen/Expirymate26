@@ -83,15 +83,17 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
   // --- Health certificate categories ---
   if (n.categories.expiredCertificates || n.categories.expiringCertificates) {
     const [employees, certificates] = await Promise.all([EmployeeRepo.all(), HealthCertificateRepo.all()]);
-    const employeeIds = new Set(employees.map((e) => e.id));
+    const employeeById = new Map(employees.map((e) => [e.id, e]));
+    const addedEmployeeIds = new Set(certificates.map((c) => c.employeeId).filter((id) => employeeById.has(id)));
     let expiredCertCount = 0;
     let expiringCertCount = 0;
-    for (const c of certificates) {
-      if (!employeeIds.has(c.employeeId)) continue;
-      const { status } = computeCertificateStatus(c.expiryDate);
+    addedEmployeeIds.forEach((id) => {
+      const emp = employeeById.get(id)!;
+      if (!emp.healthCertExpiryDate) return;
+      const { status } = computeCertificateStatus(emp.healthCertExpiryDate);
       if (status === 'expired') expiredCertCount++;
       else if (status === 'near_expiry') expiringCertCount++;
-    }
+    });
 
     if (n.categories.expiredCertificates && expiredCertCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredCertificates'))) {
       await showNotification(

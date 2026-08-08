@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { EmployeeRepo, HealthCertificateRepo, ReportRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { CertificateStatus, Employee, HealthCertificate } from '../types';
 import { computeCertificateStatus, CERTIFICATE_STATUS_LABELS } from '../engine/certificateEngine';
 import CertificateStatusBadge from '../components/common/CertificateStatusBadge';
-import DateInput from '../components/common/DateInput';
 import Modal from '../components/common/Modal';
 import { useRouter } from '../router/Router';
 import EmployeesManager from '../components/healthCertificates/EmployeesManager';
@@ -28,16 +27,11 @@ export default function HealthCertificates() {
   const [statusFilter, setStatusFilter] = useState<CertificateStatus | ''>((params.status as CertificateStatus) ?? '');
 
   const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<HealthCertificate | null>(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [employeePickerQuery, setEmployeePickerQuery] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [showEmployeesManager, setShowEmployeesManager] = useState(false);
+  const [autoEditEmployeeId, setAutoEditEmployeeId] = useState<string | undefined>(undefined);
   const [whatsappTarget, setWhatsappTarget] = useState<HealthCertificate | null>(null);
 
   const [showReportSetup, setShowReportSetup] = useState(false);
@@ -60,22 +54,24 @@ export default function HealthCertificates() {
     [selectedEmployeeIds, employeeById]
   );
 
+  // Employees already on this site's roster are excluded from the picker -
+  // an employee only needs to be added to a site once; all of their data
+  // (expiry date, notes, certificate image) is always read live from their
+  // Employee Management record afterwards, never re-entered here.
+  const alreadyOnSite = useMemo(() => new Set(certificates.filter((c) => c.siteName === siteFilter).map((c) => c.employeeId)), [
+    certificates,
+    siteFilter
+  ]);
+
   const employeePickerResults = useMemo(() => {
     const q = employeePickerQuery.trim().toLowerCase();
-    const list = q ? employees.filter((e) => e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q)) : employees;
+    const list = employees.filter((e) => {
+      if (alreadyOnSite.has(e.id)) return false;
+      if (!q) return true;
+      return e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q);
+    });
     return list.slice(0, 30);
-  }, [employees, employeePickerQuery]);
-
-  // Auto-fills the expiry date from the employee's own record when exactly one
-  // employee is selected and the date hasn't been entered yet - never overrides
-  // a date the user already typed or picked.
-  useEffect(() => {
-    if (selectedEmployeeIds.length === 1 && !expiryDate) {
-      const emp = employeeById.get(selectedEmployeeIds[0]);
-      if (emp?.healthCertExpiryDate) setExpiryDate(emp.healthCertExpiryDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployeeIds]);
+  }, [employees, employeePickerQuery, alreadyOnSite]);
 
   const siteRecords = useMemo(() => {
     let list = certificates.filter((c) => c.siteName === siteFilter);
@@ -87,81 +83,66 @@ export default function HealthCertificates() {
       });
     }
     if (statusFilter) {
-      list = list.filter((c) => computeCertificateStatus(c.expiryDate).status === statusFilter);
+      list = list.filter((c) => {
+        const emp = employeeById.get(c.employeeId);
+        if (!emp?.healthCertExpiryDate) return false;
+        return computeCertificateStatus(emp.healthCertExpiryDate).status === statusFilter;
+      });
     }
-    return list.sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+    return list.sort((a, b) => {
+      const dateA = employeeById.get(a.employeeId)?.healthCertExpiryDate ?? '';
+      const dateB = employeeById.get(b.employeeId)?.healthCertExpiryDate ?? '';
+      return dateA.localeCompare(dateB);
+    });
   }, [certificates, siteFilter, searchQuery, statusFilter, employeeById]);
 
   const openAdd = () => {
-    setEditing(null);
     setSelectedEmployeeIds([]);
     setEmployeePickerQuery('');
-    setExpiryDate('');
-    setNotes('');
-    setImageDataUrl(undefined);
-    setShowModal(true);
-  };
-
-  const openEdit = (c: HealthCertificate) => {
-    setEditing(c);
-    setSelectedEmployeeIds([c.employeeId]);
-    setEmployeePickerQuery('');
-    setExpiryDate(c.expiryDate);
-    setNotes(c.notes ?? '');
-    setImageDataUrl(c.imageDataUrl);
     setShowModal(true);
   };
 
   const toggleEmployeeSelection = (id: string) => {
-    if (editing) return; // editing an existing certificate always targets a single employee
     setSelectedEmployeeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const onImageSelected = (file: File | undefined) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImageDataUrl(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const save = async () => {
-    if (selectedEmployees.length === 0 || !expiryDate || !siteFilter) return;
-    if (editing) {
-      const emp = selectedEmployees[0];
-      const cert: HealthCertificate = { ...editing, employeeId: emp.id, siteName: siteFilter, expiryDate, notes, imageDataUrl };
+    if (selectedEmployees.length === 0 || !siteFilter) return;
+    // Adds each selected employee to this site's roster. No certificate data
+    // is entered here - expiry date, notes, and the certificate image are
+    // always read live from the employee's own record in Employee Management.
+    for (const emp of selectedEmployees) {
+      const cert: HealthCertificate = {
+        id: generateId(),
+        siteName: siteFilter,
+        employeeId: emp.id,
+        expiryDate: emp.healthCertExpiryDate ?? '',
+        createdAt: new Date().toISOString()
+      };
       await HealthCertificateRepo.save(cert);
-    } else {
-      // Adds the same certificate (site, expiry date, image, notes) as an
-      // individual record for every selected employee - e.g. a group health
-      // checkup where several employees are certified on the same date.
-      for (const emp of selectedEmployees) {
-        const cert: HealthCertificate = {
-          id: generateId(),
-          siteName: siteFilter,
-          employeeId: emp.id,
-          expiryDate,
-          notes,
-          imageDataUrl,
-          createdAt: new Date().toISOString()
-        };
-        await HealthCertificateRepo.save(cert);
-      }
     }
     setShowModal(false);
     load();
   };
 
   const remove = async (c: HealthCertificate) => {
-    if (!confirm(lang === 'ar' ? 'هل تريد حذف هذه الشهادة؟' : 'Delete this certificate?')) return;
+    if (!confirm(lang === 'ar' ? 'هل تريد إزالة هذا الموظف من قائمة هذا الموقع؟' : 'Remove this employee from this site\'s roster?')) return;
     await HealthCertificateRepo.remove(c.id);
     load();
+  };
+
+  const openInEmployeeManagement = (employeeId: string) => {
+    setAutoEditEmployeeId(employeeId);
+    setShowEmployeesManager(true);
   };
 
   if (showEmployeesManager) {
     return (
       <EmployeesManager
+        autoEditEmployeeId={autoEditEmployeeId}
         onBack={() => {
           setShowEmployeesManager(false);
+          setAutoEditEmployeeId(undefined);
           load();
         }}
       />
@@ -169,8 +150,15 @@ export default function HealthCertificates() {
   }
 
   if (activeReport) {
-    const scopedRecords = siteRecords.filter((c) => {
+    // Employee Management is the single source of truth, so every record is
+    // re-hydrated from the employee's live data before being scoped/reported.
+    const liveRecords: HealthCertificate[] = siteRecords.map((c) => {
+      const emp = employeeById.get(c.employeeId);
+      return { ...c, expiryDate: emp?.healthCertExpiryDate ?? '', notes: emp?.notes, imageDataUrl: emp?.imageDataUrl };
+    });
+    const scopedRecords = liveRecords.filter((c) => {
       if (reportScope === 'all') return true;
+      if (!c.expiryDate) return false;
       return computeCertificateStatus(c.expiryDate).status === reportScope;
     });
     const saveReport = async () => {
@@ -239,7 +227,7 @@ export default function HealthCertificates() {
             {t('generateReport')}
           </button>
           <button className="btn btn-primary" onClick={openAdd} disabled={!siteFilter}>
-            + {lang === 'ar' ? 'إضافة شهادة' : 'Add Certificate'}
+            + {lang === 'ar' ? 'إضافة موظفين' : 'Add Employees'}
           </button>
         </div>
       </div>
@@ -296,18 +284,26 @@ export default function HealthCertificates() {
               <tbody>
                 {siteRecords.map((c) => {
                   const emp = employeeById.get(c.employeeId);
-                  const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
+                  const liveExpiryDate = emp?.healthCertExpiryDate;
                   const canContact = !!emp?.mobilePhone;
                   return (
                     <tr key={c.id}>
                       <td>{emp?.code ?? '—'}</td>
                       <td>{emp?.name ?? '—'}</td>
                       <td>{emp?.jobTitle ?? '—'}</td>
-                      <td>{c.expiryDate}</td>
-                      <td>{remainingDays}</td>
-                      <td>
-                        <CertificateStatusBadge status={status} />
-                      </td>
+                      {liveExpiryDate ? (
+                        <>
+                          <td>{liveExpiryDate}</td>
+                          <td>{computeCertificateStatus(liveExpiryDate).remainingDays}</td>
+                          <td>
+                            <CertificateStatusBadge status={computeCertificateStatus(liveExpiryDate).status} />
+                          </td>
+                        </>
+                      ) : (
+                        <td colSpan={3} style={{ color: 'var(--on-surface-variant)', fontSize: '0.82rem' }}>
+                          {lang === 'ar' ? 'لا يوجد تاريخ انتهاء مسجل - أضِفه من إدارة الموظفين' : 'No expiry date on file - add it in Employee Management'}
+                        </td>
+                      )}
                       <td style={{ display: 'flex', gap: 8 }}>
                         <button
                           className="icon-btn"
@@ -326,11 +322,15 @@ export default function HealthCertificates() {
                         >
                           🟢
                         </button>
-                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(c)}>
-                          {t('edit')}
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => openInEmployeeManagement(c.employeeId)}
+                          title={lang === 'ar' ? 'كل البيانات تُعدَّل من إدارة الموظفين' : 'All data is edited in Employee Management'}
+                        >
+                          {lang === 'ar' ? 'بيانات الموظف' : 'Employee Data'}
                         </button>
                         <button className="btn btn-danger btn-sm" onClick={() => remove(c)}>
-                          {t('delete')}
+                          {lang === 'ar' ? 'إزالة' : 'Remove'}
                         </button>
                       </td>
                     </tr>
@@ -343,13 +343,13 @@ export default function HealthCertificates() {
           <div className="mobile-cards">
             {siteRecords.map((c) => {
               const emp = employeeById.get(c.employeeId);
-              const { remainingDays, status } = computeCertificateStatus(c.expiryDate);
+              const liveExpiryDate = emp?.healthCertExpiryDate;
               const canContact = !!emp?.mobilePhone;
               return (
                 <div className="record-card" key={c.id}>
                   <div className="record-card-header">
                     <div className="record-card-title">{emp?.name ?? '—'}</div>
-                    <CertificateStatusBadge status={status} />
+                    {liveExpiryDate && <CertificateStatusBadge status={computeCertificateStatus(liveExpiryDate).status} />}
                   </div>
                   <div className="record-card-row">
                     <span>{lang === 'ar' ? 'الكود' : 'Code'}</span>
@@ -359,14 +359,24 @@ export default function HealthCertificates() {
                     <span>{lang === 'ar' ? 'الوظيفة' : 'Job Title'}</span>
                     <span>{emp?.jobTitle ?? '—'}</span>
                   </div>
-                  <div className="record-card-row">
-                    <span>{lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry'}</span>
-                    <span>{c.expiryDate}</span>
-                  </div>
-                  <div className="record-card-row">
-                    <span>{t('remainingDays')}</span>
-                    <span>{remainingDays}</span>
-                  </div>
+                  {liveExpiryDate ? (
+                    <>
+                      <div className="record-card-row">
+                        <span>{lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry'}</span>
+                        <span>{liveExpiryDate}</span>
+                      </div>
+                      <div className="record-card-row">
+                        <span>{t('remainingDays')}</span>
+                        <span>{computeCertificateStatus(liveExpiryDate).remainingDays}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="record-card-row">
+                      <span style={{ color: 'var(--on-surface-variant)', fontSize: '0.82rem' }}>
+                        {lang === 'ar' ? 'لا يوجد تاريخ انتهاء مسجل - أضِفه من إدارة الموظفين' : 'No expiry date on file - add it in Employee Management'}
+                      </span>
+                    </div>
+                  )}
                   <div className="record-card-actions">
                     <button
                       className="icon-btn"
@@ -385,11 +395,11 @@ export default function HealthCertificates() {
                     >
                       🟢
                     </button>
-                    <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => openEdit(c)}>
-                      {t('edit')}
+                    <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => openInEmployeeManagement(c.employeeId)}>
+                      {lang === 'ar' ? 'بيانات الموظف' : 'Employee Data'}
                     </button>
                     <button className="btn btn-danger btn-sm" style={{ flex: 1 }} onClick={() => remove(c)}>
-                      {t('delete')}
+                      {lang === 'ar' ? 'إزالة' : 'Remove'}
                     </button>
                   </div>
                 </div>
@@ -400,149 +410,90 @@ export default function HealthCertificates() {
       )}
 
       {showModal && (
-        <Modal title={editing ? t('edit') : lang === 'ar' ? 'إضافة شهادة' : 'Add Certificate'} onClose={() => setShowModal(false)}>
-          <div className="form-grid">
-            {editing ? (
-              <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-                <label>{lang === 'ar' ? 'الموظف' : 'Employee'}</label>
-                {selectedEmployees[0] && (
-                  <div className="card" style={{ padding: 10, fontSize: '0.85rem', display: 'grid', gap: 4 }}>
-                    <div>
-                      <strong>{selectedEmployees[0].name}</strong> ({selectedEmployees[0].code})
-                    </div>
-                    <div>
-                      {lang === 'ar' ? 'الوظيفة' : 'Job Title'}: {selectedEmployees[0].jobTitle || '—'}
-                    </div>
-                    <div>
-                      {lang === 'ar' ? 'الموبايل' : 'Mobile'}: {selectedEmployees[0].mobilePhone || '—'}
-                    </div>
-                    <div>
-                      {lang === 'ar' ? 'رقم التأمين' : 'Insurance No.'}: {selectedEmployees[0].insuranceNumber || '—'}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-                <label>{lang === 'ar' ? 'الموظفون (يمكن اختيار أكثر من موظف)' : 'Employees (multiple selection allowed)'}</label>
-                <Autocomplete
-                  freeText
-                  value={employeePickerQuery}
-                  onChange={setEmployeePickerQuery}
-                  options={employees.map((e) => ({ value: e.code, label: e.code, sublabel: e.name }))}
-                  placeholder={lang === 'ar' ? 'ابحث بالكود أو الاسم' : 'Search by code or name'}
-                />
-                <div
-                  style={{
-                    maxHeight: 160,
-                    overflowY: 'auto',
-                    border: '1px solid var(--outline-variant)',
-                    borderRadius: 8,
-                    marginTop: 6
-                  }}
-                >
-                  {employeePickerResults.length === 0 ? (
-                    <div style={{ padding: 10, fontSize: '0.8rem', color: 'var(--on-surface-variant)' }}>
-                      {lang === 'ar' ? 'لا يوجد موظفون مطابقون' : 'No matching employees'}
-                    </div>
-                  ) : (
-                    employeePickerResults.map((e) => (
-                      <label
-                        key={e.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '6px 10px',
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          borderBottom: '1px solid var(--outline-variant)'
-                        }}
-                      >
-                        <input type="checkbox" checked={selectedEmployeeIds.includes(e.id)} onChange={() => toggleEmployeeSelection(e.id)} />
-                        <span>
-                          {e.name} <span style={{ color: 'var(--on-surface-variant)' }}>({e.code})</span>
-                        </span>
-                      </label>
-                    ))
-                  )}
+        <Modal title={lang === 'ar' ? 'إضافة موظفين لهذا الموقع' : 'Add Employees to This Site'} onClose={() => setShowModal(false)}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)', marginBottom: 10 }}>
+            {lang === 'ar'
+              ? 'اختر الموظفين لإدراجهم في قائمة هذا الموقع. كل بياناتهم (تاريخ الانتهاء، الملاحظات، صورة الشهادة) تُقرأ تلقائيًا من "إدارة الموظفين" ولا تُدخل هنا.'
+              : 'Select employees to include on this site\'s roster. All their data (expiry date, notes, certificate image) is read automatically from Employee Management and is not entered here.'}
+          </div>
+          <div className="form-field">
+            <label>{lang === 'ar' ? 'الموظفون (يمكن اختيار أكثر من موظف)' : 'Employees (multiple selection allowed)'}</label>
+            <Autocomplete
+              freeText
+              value={employeePickerQuery}
+              onChange={setEmployeePickerQuery}
+              options={employeePickerResults.map((e) => ({ value: e.code, label: e.code, sublabel: e.name }))}
+              placeholder={lang === 'ar' ? 'ابحث بالكود أو الاسم' : 'Search by code or name'}
+            />
+            <div
+              style={{
+                maxHeight: 160,
+                overflowY: 'auto',
+                border: '1px solid var(--outline-variant)',
+                borderRadius: 8,
+                marginTop: 6
+              }}
+            >
+              {employeePickerResults.length === 0 ? (
+                <div style={{ padding: 10, fontSize: '0.8rem', color: 'var(--on-surface-variant)' }}>
+                  {lang === 'ar' ? 'لا يوجد موظفون مطابقون (أو تمت إضافتهم بالفعل لهذا الموقع)' : 'No matching employees (or already added to this site)'}
                 </div>
+              ) : (
+                employeePickerResults.map((e) => (
+                  <label
+                    key={e.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid var(--outline-variant)'
+                    }}
+                  >
+                    <input type="checkbox" checked={selectedEmployeeIds.includes(e.id)} onChange={() => toggleEmployeeSelection(e.id)} />
+                    <span>
+                      {e.name} <span style={{ color: 'var(--on-surface-variant)' }}>({e.code})</span>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
 
-                {selectedEmployees.length > 0 && (
-                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--on-surface-variant)' }}>
-                      {lang === 'ar' ? `الموظفون المحددون (${selectedEmployees.length})` : `Selected Employees (${selectedEmployees.length})`}
-                    </div>
-                    {selectedEmployees.map((e) => (
-                      <div
-                        key={e.id}
-                        className="card"
-                        style={{ padding: 8, fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
-                      >
-                        <div>
-                          <div>
-                            <strong>{e.name}</strong> ({e.code})
-                          </div>
-                          <div style={{ color: 'var(--on-surface-variant)' }}>
-                            {lang === 'ar' ? 'الوظيفة' : 'Job'}: {e.jobTitle || '—'} · {lang === 'ar' ? 'موبايل' : 'Mobile'}:{' '}
-                            {e.mobilePhone || '—'} · {lang === 'ar' ? 'تأمين' : 'Insurance'}: {e.insuranceNumber || '—'}
-                          </div>
-                        </div>
-                        <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => toggleEmployeeSelection(e.id)}>
-                          ✕
-                        </button>
+            {selectedEmployees.length > 0 && (
+              <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--on-surface-variant)' }}>
+                  {lang === 'ar' ? `الموظفون المحددون (${selectedEmployees.length})` : `Selected Employees (${selectedEmployees.length})`}
+                </div>
+                {selectedEmployees.map((e) => (
+                  <div
+                    key={e.id}
+                    className="card"
+                    style={{ padding: 8, fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+                  >
+                    <div>
+                      <div>
+                        <strong>{e.name}</strong> ({e.code})
                       </div>
-                    ))}
+                      <div style={{ color: 'var(--on-surface-variant)' }}>
+                        {lang === 'ar' ? 'الوظيفة' : 'Job'}: {e.jobTitle || '—'} · {lang === 'ar' ? 'موبايل' : 'Mobile'}:{' '}
+                        {e.mobilePhone || '—'} · {lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry'}: {e.healthCertExpiryDate || '—'}
+                      </div>
+                    </div>
+                    <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => toggleEmployeeSelection(e.id)}>
+                      ✕
+                    </button>
                   </div>
-                )}
+                ))}
               </div>
             )}
-            <div className="form-field">
-              <label>{lang === 'ar' ? 'تاريخ انتهاء الشهادة' : 'Certificate Expiry Date'}</label>
-              <DateInput value={expiryDate} onChange={setExpiryDate} />
-            </div>
-            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-              <label>{lang === 'ar' ? 'ملاحظات (اختياري)' : 'Notes (optional)'}</label>
-              <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
-              <label>{lang === 'ar' ? 'صورة الشهادة (اختياري)' : 'Certificate Image (optional)'}</label>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                {imageDataUrl && <img src={imageDataUrl} alt="certificate" style={{ height: 60, borderRadius: 8 }} />}
-                <button className="btn btn-outline btn-sm" onClick={() => cameraInputRef.current?.click()}>
-                  📷 {lang === 'ar' ? 'التقاط بالكاميرا' : 'Capture from Camera'}
-                </button>
-                <button className="btn btn-outline btn-sm" onClick={() => galleryInputRef.current?.click()}>
-                  🖼️ {lang === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery'}
-                </button>
-                {imageDataUrl && (
-                  <button className="btn btn-outline btn-sm" onClick={() => setImageDataUrl(undefined)}>
-                    {lang === 'ar' ? 'إزالة' : 'Remove'}
-                  </button>
-                )}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: 'none' }}
-                  onChange={(e) => onImageSelected(e.target.files?.[0])}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => onImageSelected(e.target.files?.[0])}
-                />
-              </div>
-            </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
             <button className="btn btn-outline" onClick={() => setShowModal(false)}>
               {t('cancel')}
             </button>
-            <button className="btn btn-primary" onClick={save} disabled={selectedEmployees.length === 0 || !expiryDate}>
+            <button className="btn btn-primary" onClick={save} disabled={selectedEmployees.length === 0}>
               {t('save')}
             </button>
           </div>
@@ -612,8 +563,8 @@ export default function HealthCertificates() {
             employee={emp}
             companyName={settings.companyName || (lang === 'ar' ? 'الشركة' : 'The Company')}
             lang={lang}
-            certificateImageDataUrl={whatsappTarget.imageDataUrl}
-            certificateExpiryDate={whatsappTarget.expiryDate}
+            certificateImageDataUrl={emp.imageDataUrl}
+            certificateExpiryDate={emp.healthCertExpiryDate}
             onClose={() => setWhatsappTarget(null)}
           />
         ) : null;

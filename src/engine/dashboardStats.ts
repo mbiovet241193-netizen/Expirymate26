@@ -45,12 +45,14 @@ export async function computeDashboardStats(): Promise<DashboardStats> {
     else beforeHalf++;
   });
 
-  const employeeIds = new Set(employees.map((e) => e.id));
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  const addedEmployeeIds = new Set(certificates.map((c) => c.employeeId).filter((id) => employeeById.has(id)));
   let expiredCerts = 0;
   let expiringCerts = 0;
-  certificates.forEach((c) => {
-    if (!employeeIds.has(c.employeeId)) return;
-    const { status } = computeCertificateStatus(c.expiryDate);
+  addedEmployeeIds.forEach((id) => {
+    const emp = employeeById.get(id)!;
+    if (!emp.healthCertExpiryDate) return;
+    const { status } = computeCertificateStatus(emp.healthCertExpiryDate);
     if (status === 'expired') expiredCerts++;
     else if (status === 'near_expiry') expiringCerts++;
   });

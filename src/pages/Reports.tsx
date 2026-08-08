@@ -103,8 +103,12 @@ export default function Reports() {
   const certificatesNeedingAttention = () => {
     const employeeMap = new Map(employees.map((e) => [e.id, e]));
     return certificates
-      .map((c) => ({ cert: c, employee: employeeMap.get(c.employeeId), ...computeCertificateStatus(c.expiryDate) }))
-      .filter((r) => r.employee && r.status !== 'valid')
+      .map((c) => {
+        const employee = employeeMap.get(c.employeeId);
+        const liveExpiryDate = employee?.healthCertExpiryDate;
+        return { cert: c, employee, liveExpiryDate, ...(liveExpiryDate ? computeCertificateStatus(liveExpiryDate) : { remainingDays: 0, status: 'valid' as const }) };
+      })
+      .filter((r) => r.employee && r.liveExpiryDate && r.status !== 'valid')
       .sort((a, b) => a.remainingDays - b.remainingDays);
   };
 
@@ -187,7 +191,7 @@ export default function Reports() {
       }));
       const certRows = certificatesNeedingAttention().map((r) => ({
         [lang === 'ar' ? 'الموظف' : 'Employee']: r.employee!.name,
-        [lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date']: r.cert.expiryDate,
+        [lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date']: r.liveExpiryDate,
         [lang === 'ar' ? 'الحالة' : 'Status']: r.status
       }));
       const ncRows = nonConformingForMonth(setupDate).map((r) => ({
@@ -385,7 +389,7 @@ export default function Reports() {
                       <tr key={r.cert.id}>
                         <td>{i + 1}</td>
                         <td>{r.employee!.name}</td>
-                        <td>{r.cert.expiryDate}</td>
+                        <td>{r.liveExpiryDate}</td>
                         <td>
                           <CertificateStatusBadge status={r.status} />
                         </td>
@@ -405,7 +409,7 @@ export default function Reports() {
                     </div>
                     <div className="record-card-row">
                       <span>{lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date'}</span>
-                      <span>{r.cert.expiryDate}</span>
+                      <span>{r.liveExpiryDate}</span>
                     </div>
                   </div>
                 ))}

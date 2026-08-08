@@ -1,19 +1,28 @@
 // Employee database screen for the Health Certificates module.
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { EmployeeRepo, HealthCertificateRepo, ReportRepo } from '../../db/repositories';
+import { EmployeeRepo, ReportRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { Employee, HealthCertificate } from '../../types';
 import { computeCertificateStatus } from '../../engine/certificateEngine';
 import Modal from '../common/Modal';
 import DateInput from '../common/DateInput';
+import CertificateStatusBadge from '../common/CertificateStatusBadge';
 import HealthCertificateReport from './HealthCertificateReport';
 import WhatsAppMessageDialog from './WhatsAppMessageDialog';
 import BulkWhatsAppDialog from './BulkWhatsAppDialog';
 import type { ReportFormat } from '../../pages/HealthCertificates';
 import { exportEmployeesToExcel, parseEmployeesExcelFile } from '../../utils/employeesExcel';
 
-export default function EmployeesManager({ onBack }: { onBack: () => void }) {
+export default function EmployeesManager({
+  onBack,
+  autoEditEmployeeId
+}: {
+  onBack: () => void;
+  /** When provided, immediately opens this employee's edit form on mount - used by the
+   *  "Open in Employee Management" shortcut from the site certificate list. */
+  autoEditEmployeeId?: string;
+}) {
   const { lang, t, settings } = useApp();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,8 +34,12 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
   const [healthCertExpiryDate, setHealthCertExpiryDate] = useState('');
   const [insuranceNumber, setInsuranceNumber] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
+  const [notes, setNotes] = useState('');
+  const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
   const [importSummary, setImportSummary] = useState<{ created: number; updated: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [whatsappTarget, setWhatsappTarget] = useState<Employee | null>(null);
@@ -76,34 +89,23 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
 
   /**
    * Builds the report record set for the currently selected employees.
-   * For each selected employee, the most recent matching HealthCertificate
-   * record (with its image, if any) is used when available; otherwise a
-   * lightweight record is built from the employee's own health-certificate
-   * expiry date field. Employees with neither are skipped and counted.
+   * Employee Management is the single source of truth for certificate data,
+   * so every field (expiry date, notes, certificate image) is taken directly
+   * and live from each selected employee's own record. Employees with no
+   * expiry date on file are skipped and counted.
    */
-  const buildReportRecords = async (): Promise<{ records: HealthCertificate[]; skipped: number }> => {
-    const allCertificates = await HealthCertificateRepo.all();
-    const bySelectedEmployee = new Map<string, HealthCertificate[]>();
-    allCertificates.forEach((c) => {
-      if (!selectedIds.has(c.employeeId)) return;
-      const list = bySelectedEmployee.get(c.employeeId) ?? [];
-      list.push(c);
-      bySelectedEmployee.set(c.employeeId, list);
-    });
-
+  const buildReportRecords = (): { records: HealthCertificate[]; skipped: number } => {
     const records: HealthCertificate[] = [];
     let skipped = 0;
     for (const emp of selectedEmployees) {
-      const empCerts = bySelectedEmployee.get(emp.id);
-      if (empCerts && empCerts.length > 0) {
-        const latest = [...empCerts].sort((a, b) => b.expiryDate.localeCompare(a.expiryDate))[0];
-        records.push(latest);
-      } else if (emp.healthCertExpiryDate) {
+      if (emp.healthCertExpiryDate) {
         records.push({
           id: `emp-${emp.id}`,
           siteName: '',
           employeeId: emp.id,
           expiryDate: emp.healthCertExpiryDate,
+          notes: emp.notes,
+          imageDataUrl: emp.imageDataUrl,
           createdAt: emp.updatedAt
         });
       } else {
@@ -113,8 +115,8 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     return { records, skipped };
   };
 
-  const generateReport = async () => {
-    const result = await buildReportRecords();
+  const generateReport = () => {
+    const result = buildReportRecords();
     setActiveReport(result);
     setShowReportSetup(false);
   };
@@ -150,6 +152,14 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     });
   };
 
+  useEffect(() => {
+    if (autoEditEmployeeId && employees.length > 0) {
+      const emp = employees.find((e) => e.id === autoEditEmployeeId);
+      if (emp) openEdit(emp);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEditEmployeeId, employees]);
+
   const openAdd = () => {
     setEditing(null);
     setCode('');
@@ -158,6 +168,8 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     setHealthCertExpiryDate('');
     setInsuranceNumber('');
     setMobilePhone('');
+    setNotes('');
+    setImageDataUrl(undefined);
     setShowModal(true);
   };
 
@@ -169,7 +181,16 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
     setHealthCertExpiryDate(e.healthCertExpiryDate ?? '');
     setInsuranceNumber(e.insuranceNumber ?? '');
     setMobilePhone(e.mobilePhone ?? '');
+    setNotes(e.notes ?? '');
+    setImageDataUrl(e.imageDataUrl);
     setShowModal(true);
+  };
+
+  const onImageSelected = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImageDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const save = async () => {
@@ -181,7 +202,9 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
       jobTitle: jobTitle.trim(),
       healthCertExpiryDate: healthCertExpiryDate || undefined,
       insuranceNumber: insuranceNumber.trim() || undefined,
-      mobilePhone: mobilePhone.trim() || undefined
+      mobilePhone: mobilePhone.trim() || undefined,
+      notes: notes.trim() || undefined,
+      imageDataUrl
     };
     const emp: Employee = editing
       ? { ...editing, ...common, updatedAt: now }
@@ -342,6 +365,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                   <th>{lang === 'ar' ? 'الاسم' : 'Name'}</th>
                   <th>{lang === 'ar' ? 'المسمى الوظيفي' : 'Job Title'}</th>
                   <th>{lang === 'ar' ? 'رقم الموبايل' : 'Mobile Phone'}</th>
+                  <th>{lang === 'ar' ? 'حالة الشهادة' : 'Certificate Status'}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -355,6 +379,15 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                     <td>{e.name}</td>
                     <td>{e.jobTitle}</td>
                     <td>{e.mobilePhone ?? '—'}</td>
+                    <td>
+                      {e.healthCertExpiryDate ? (
+                        <CertificateStatusBadge status={computeCertificateStatus(e.healthCertExpiryDate).status} />
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--on-surface-variant)' }}>
+                          {lang === 'ar' ? 'بدون تاريخ' : 'No date'}
+                        </span>
+                      )}
+                    </td>
                     <td style={{ display: 'flex', gap: 8 }}>
                       <button
                         className="btn btn-outline btn-sm"
@@ -385,6 +418,7 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
                     <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleOne(e.id)} />
                     <div className="record-card-title">{e.name}</div>
                   </label>
+                  {e.healthCertExpiryDate && <CertificateStatusBadge status={computeCertificateStatus(e.healthCertExpiryDate).status} />}
                 </div>
                 <div className="record-card-row">
                   <span>{lang === 'ar' ? 'الكود' : 'Code'}</span>
@@ -443,6 +477,42 @@ export default function EmployeesManager({ onBack }: { onBack: () => void }) {
             <div className="form-field">
               <label>{lang === 'ar' ? 'رقم الموبايل' : 'Mobile Phone'}</label>
               <input value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)} />
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>{lang === 'ar' ? 'ملاحظات (اختياري)' : 'Notes (optional)'}</label>
+              <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+              <label>{lang === 'ar' ? 'صورة الشهادة الصحية (اختياري)' : 'Health Certificate Image (optional)'}</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                {imageDataUrl && <img src={imageDataUrl} alt="certificate" style={{ height: 60, borderRadius: 8 }} />}
+                <button className="btn btn-outline btn-sm" onClick={() => cameraInputRef.current?.click()}>
+                  📷 {lang === 'ar' ? 'التقاط بالكاميرا' : 'Capture from Camera'}
+                </button>
+                <button className="btn btn-outline btn-sm" onClick={() => galleryInputRef.current?.click()}>
+                  🖼️ {lang === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery'}
+                </button>
+                {imageDataUrl && (
+                  <button className="btn btn-outline btn-sm" onClick={() => setImageDataUrl(undefined)}>
+                    {lang === 'ar' ? 'إزالة' : 'Remove'}
+                  </button>
+                )}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => onImageSelected(e.target.files?.[0])}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => onImageSelected(e.target.files?.[0])}
+                />
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>

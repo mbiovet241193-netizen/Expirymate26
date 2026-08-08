@@ -153,6 +153,8 @@ export interface Employee {
   healthCertExpiryDate?: string; // ISO date, optional — imported/entered health certificate expiry
   insuranceNumber?: string; // رقم التأمين الطبي
   mobilePhone?: string;
+  notes?: string; // general notes, entered and edited only via Employee Management
+  imageDataUrl?: string; // base64 health certificate photo — captured/managed only via Employee Management
   createdAt: string;
   updatedAt: string;
 }
