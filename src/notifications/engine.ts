@@ -53,7 +53,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
 
     if (n.categories.expiredProducts && expiredCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredProducts'))) {
       await showNotification(
-        'ExpiryMate — Dr. Deja',
+        'QualityMate — Dr. Deja',
         `${intro}\n${notificationLine('expiredProducts', expiredCount, lang)}\n${DR_DEJA_SIGNATURE}`,
         'batches',
         { status: 'expired' }
@@ -62,7 +62,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
     }
     if (n.categories.expiringProducts && expiringCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringProducts'))) {
       await showNotification(
-        'ExpiryMate — Dr. Deja',
+        'QualityMate — Dr. Deja',
         `${intro}\n${notificationLine('expiringProducts', expiringCount, lang)}\n${DR_DEJA_SIGNATURE}`,
         'batches',
         { status: 'near_expiry' }
@@ -71,7 +71,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
     }
     if (n.categories.halfLifeProducts && halfLifeCount > 0 && !(await NotificationLogRepo.wasSentToday('halfLifeProducts'))) {
       await showNotification(
-        'ExpiryMate — Dr. Deja',
+        'QualityMate — Dr. Deja',
         `${intro}\n${notificationLine('halfLifeProducts', halfLifeCount, lang)}\n${DR_DEJA_SIGNATURE}`,
         'batches',
         { status: 'after_half' }
@@ -97,7 +97,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
 
     if (n.categories.expiredCertificates && expiredCertCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredCertificates'))) {
       await showNotification(
-        'ExpiryMate — Dr. Deja',
+        'QualityMate — Dr. Deja',
         `${intro}\n${notificationLine('expiredCertificates', expiredCertCount, lang)}\n${DR_DEJA_SIGNATURE}`,
         'healthCertificates',
         { status: 'expired' }
@@ -106,7 +106,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
     }
     if (n.categories.expiringCertificates && expiringCertCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringCertificates'))) {
       await showNotification(
-        'ExpiryMate — Dr. Deja',
+        'QualityMate — Dr. Deja',
         `${intro}\n${notificationLine('expiringCertificates', expiringCertCount, lang)}\n${DR_DEJA_SIGNATURE}`,
         'healthCertificates',
         { status: 'near_expiry' }
@@ -118,7 +118,7 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
   // --- Daily reminder (no data condition - just a nudge, once a day) ---
   if (n.categories.dailyReminder && !(await NotificationLogRepo.wasSentToday('dailyReminder'))) {
     const line = lang === 'ar' ? DAILY_REMINDER_LINE.ar : DAILY_REMINDER_LINE.en;
-    await showNotification('ExpiryMate — Dr. Deja', `${intro}\n${line}\n${DR_DEJA_SIGNATURE}`, 'dashboard');
+    await showNotification('QualityMate — Dr. Deja', `${intro}\n${line}\n${DR_DEJA_SIGNATURE}`, 'dashboard');
     await NotificationLogRepo.markSentToday('dailyReminder');
   }
 }
@@ -131,7 +131,7 @@ export async function sendTestNotification(lang: Lang, gender: DoctorGender = 'm
     lang === 'ar'
       ? `${intro}\nهذا إشعار تجريبي للتأكد من عمل الإشعارات بشكل صحيح.\n${DR_DEJA_SIGNATURE}`
       : `${intro}\nThis is a test notification to confirm everything is working.\n${DR_DEJA_SIGNATURE}`;
-  await showNotification('ExpiryMate — Dr. Deja', body, 'dashboard');
+  await showNotification('QualityMate — Dr. Deja', body, 'dashboard');
   return true;
 }
 

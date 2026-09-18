@@ -1,6 +1,6 @@
 {
-  "name": "ExpiryMate - مساعدك الذكي لإدارة الصلاحيات",
-  "short_name": "ExpiryMate",
+  "name": "QualityMate - مساعدك الذكي لإدارة الصلاحيات",
+  "short_name": "QualityMate",
   "description": "Your Smart Quality Assistant for expiry management, FEFO, and Egyptian shelf-life calculations.",
   "start_url": "/",
   "scope": "/",

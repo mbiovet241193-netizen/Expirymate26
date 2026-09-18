@@ -27,7 +27,7 @@ export default function Header() {
     <header className="top-header no-print">
       <div className="header-brand" onClick={() => navigate('dashboard')} role="button" tabIndex={0}>
         <span className="header-brand-icon" aria-hidden="true">🛡️</span>
-        <span className="header-brand-title">ExpiryMate</span>
+        <span className="header-brand-title">QualityMate</span>
       </div>
       {route !== 'dashboard' && <h1 className="header-page-title">{t(TITLES[route] ?? 'dashboard')}</h1>}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

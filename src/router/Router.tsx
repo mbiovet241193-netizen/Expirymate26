@@ -9,6 +9,7 @@ export type Route =
   | 'receiving'
   | 'nonConforming'
   | 'healthCertificates'
+  | 'maintenance'
   | 'search'
   | 'reports'
   | 'reportsArchive'

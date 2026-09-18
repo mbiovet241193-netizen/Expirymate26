@@ -1,4 +1,4 @@
-# ExpiryMate
+# QualityMate
 
 **Your Smart Quality Assistant** — مساعدك الذكي لإدارة الصلاحيات
 

@@ -1,8 +1,8 @@
-// ExpiryMate Service Worker
+// QualityMate Service Worker
 // Offline-first, cache-first strategy for the app shell.
 // No external network calls are ever made by this app.
 
-const CACHE_NAME = 'expirymate-cache-v4';
+const CACHE_NAME = 'qualitymate-cache-v5';
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// --- Notification click: open ExpiryMate directly on the relevant screen ---
+// --- Notification click: open QualityMate directly on the relevant screen ---
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
@@ -68,7 +68,7 @@ self.addEventListener('notificationclick', (event) => {
 // the app falls back to the on-open check in src/context/AppContext.tsx,
 // which is the only mechanism guaranteed to work everywhere.
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'expirymate-daily-check') {
+  if (event.tag === 'qualitymate-daily-check') {
     event.waitUntil(runBackgroundNotificationCheck());
   }
 });
@@ -162,7 +162,7 @@ async function runBackgroundNotificationCheck() {
           lang === 'ar'
             ? `${intro}\nيوجد ${expired} منتجات منتهية الصلاحية تحتاج إلى مراجعة.\n${signature}`
             : `${intro}\n${expired} product(s) have expired and need review.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'expired' } } });
+        await self.registration.showNotification('QualityMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'expired' } } });
         await markSentToday(db, 'expiredProducts');
       }
       if (n.categories.expiringProducts && expiring > 0 && !(await wasSentToday(db, 'expiringProducts'))) {
@@ -170,7 +170,7 @@ async function runBackgroundNotificationCheck() {
           lang === 'ar'
             ? `${intro}\nيوجد ${expiring} منتجات ستنتهي خلال 30 يوماً.\n${signature}`
             : `${intro}\n${expiring} product(s) will expire within 30 days.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'near_expiry' } } });
+        await self.registration.showNotification('QualityMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'near_expiry' } } });
         await markSentToday(db, 'expiringProducts');
       }
       if (n.categories.halfLifeProducts && halfLife > 0 && !(await wasSentToday(db, 'halfLifeProducts'))) {
@@ -178,7 +178,7 @@ async function runBackgroundNotificationCheck() {
           lang === 'ar'
             ? `${intro}\nيوجد ${halfLife} منتجات تجاوزت نصف الصلاحية.\n${signature}`
             : `${intro}\n${halfLife} product(s) have passed half shelf life.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'after_half' } } });
+        await self.registration.showNotification('QualityMate — Dr. Deja', { body, data: { route: 'batches', params: { status: 'after_half' } } });
         await markSentToday(db, 'halfLifeProducts');
       }
     }
@@ -199,7 +199,7 @@ async function runBackgroundNotificationCheck() {
           lang === 'ar'
             ? `${intro}\nتوجد ${expiredCert} شهادات صحية منتهية.\n${signature}`
             : `${intro}\n${expiredCert} health certificate(s) have expired.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'healthCertificates', params: { status: 'expired' } } });
+        await self.registration.showNotification('QualityMate — Dr. Deja', { body, data: { route: 'healthCertificates', params: { status: 'expired' } } });
         await markSentToday(db, 'expiredCertificates');
       }
       if (n.categories.expiringCertificates && expiringCert > 0 && !(await wasSentToday(db, 'expiringCertificates'))) {
@@ -207,14 +207,14 @@ async function runBackgroundNotificationCheck() {
           lang === 'ar'
             ? `${intro}\nتوجد ${expiringCert} شهادات صحية ستنتهيان قريباً.\n${signature}`
             : `${intro}\n${expiringCert} health certificate(s) will expire soon.\n${signature}`;
-        await self.registration.showNotification('ExpiryMate — Dr. Deja', { body, data: { route: 'healthCertificates', params: { status: 'near_expiry' } } });
+        await self.registration.showNotification('QualityMate — Dr. Deja', { body, data: { route: 'healthCertificates', params: { status: 'near_expiry' } } });
         await markSentToday(db, 'expiringCertificates');
       }
     }
 
     if (n.categories.dailyReminder && !(await wasSentToday(db, 'dailyReminder'))) {
       const line = lang === 'ar' ? 'تذكير: يرجى مراجعة تواريخ الصلاحية اليوم.' : 'Reminder: please review expiry dates today.';
-      await self.registration.showNotification('ExpiryMate — Dr. Deja', { body: `${intro}\n${line}\n${signature}`, data: { route: 'dashboard' } });
+      await self.registration.showNotification('QualityMate — Dr. Deja', { body: `${intro}\n${line}\n${signature}`, data: { route: 'dashboard' } });
       await markSentToday(db, 'dailyReminder');
     }
   } catch {

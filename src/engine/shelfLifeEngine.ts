@@ -1,7 +1,7 @@
 import type { ProductStatus, ShelfLifeUnit } from '../types';
 
 /**
- * Egyptian Shelf-Life Engine — ExpiryMate business rules (confirmed by Product Owner)
+ * Egyptian Shelf-Life Engine — QualityMate business rules (confirmed by Product Owner)
  *
  * Rule 1 — Shelf life <= 3 months:
  *   Exact calendar-day calculation. The production day counts as day 1 of the
@@ -79,7 +79,7 @@ export interface ExpiryCalculationResult {
   usesShortRule: boolean; // true = Day/Month/Year exact, false = Month/Year (last day)
 }
 
-/** Calculates expiry date & half-life date per ExpiryMate business rules. */
+/** Calculates expiry date & half-life date per QualityMate business rules. */
 export function calculateExpiry(input: ExpiryCalculationInput): ExpiryCalculationResult {
   const { productionDate, shelfLifeValue, shelfLifeUnit } = input;
   const prodDate = parseISODate(productionDate);
@@ -139,9 +139,11 @@ export interface BatchStatusResult {
  * Both short (<=3 months) and long (>3 months) shelf-life products follow the SAME lifecycle:
  *   Within Shelf Life -> Passed Half Shelf Life -> [final warning stage] -> Expired
  * The half-life check always runs before the final warning stage for both cases.
- * The only difference is the final warning stage's threshold/label:
- *   - Long shelf-life (>3 months):  "Will Expire Within 30 Days" -> remainingDays <= 30
- *   - Short shelf-life (<=3 months): "Expiring Soon" -> remainingDays between 1 and 9 (inclusive)
+ * The difference is the final warning stage's threshold/label AND the exact Expired cutoff:
+ *   - Long shelf-life (>3 months):  "Will Expire Within 30 Days" -> 0-30 remaining days.
+ *                                    Expired -> remainingDays < 0.
+ *   - Short shelf-life (<=3 months): "Expiring Soon" -> 1-9 remaining days.
+ *                                    Expired -> remainingDays < 1 (i.e. 0 or fewer).
  *
  * shelfLifeValue/shelfLifeUnit determine which rule applies, using the same <=3-months
  * threshold as calculateExpiry (shelfLifeInMonths). If omitted, the long-life (30-day) rule
@@ -173,16 +175,18 @@ export function computeBatchStatus(
       : false;
 
   let status: ProductStatus;
-  if (remainingDays < 0) {
-    status = 'expired';
-  } else if (usesShortRule) {
-    if (remainingDays >= 1 && remainingDays <= 9) {
+  if (usesShortRule) {
+    if (remainingDays < 1) {
+      status = 'expired';
+    } else if (remainingDays <= 9) {
       status = 'expiring_soon';
     } else if (todayMid.getTime() > half.getTime()) {
       status = 'after_half';
     } else {
       status = 'before_half';
     }
+  } else if (remainingDays < 0) {
+    status = 'expired';
   } else if (remainingDays <= 30) {
     status = 'near_expiry';
   } else if (todayMid.getTime() > half.getTime()) {

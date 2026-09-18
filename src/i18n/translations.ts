@@ -2,7 +2,7 @@ export type Lang = 'ar' | 'en';
 
 export const translations = {
   ar: {
-    appName: 'ExpiryMate',
+    appName: 'QualityMate',
     tagline: 'مساعدك الذكي لإدارة الصلاحيات',
     dashboard: 'لوحة التحكم',
     categories: 'الفئات',
@@ -67,7 +67,7 @@ export const translations = {
     importEmployeeUpdated: 'موظف تم تحديثه'
   },
   en: {
-    appName: 'ExpiryMate',
+    appName: 'QualityMate',
     tagline: 'Your Smart Quality Assistant',
     dashboard: 'Dashboard',
     categories: 'Categories',

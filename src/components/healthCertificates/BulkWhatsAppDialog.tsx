@@ -7,7 +7,7 @@ import { type MessageOption, toWhatsAppNumber, buildWhatsAppTemplates } from '..
 /**
  * Bulk WhatsApp messaging for a set of selected employees.
  *
- * IMPORTANT: ExpiryMate never sends messages automatically. This dialog only
+ * IMPORTANT: QualityMate never sends messages automatically. This dialog only
  * prepares one message per employee; the user must open WhatsApp and press
  * Send manually for each employee, one at a time. There is no "send all" action.
  */
@@ -130,8 +130,8 @@ export default function BulkWhatsAppDialog({
 
       <div style={{ fontSize: '0.78rem', color: 'var(--on-surface-variant)', marginTop: 12 }}>
         {lang === 'ar'
-          ? 'ExpiryMate لا يرسل أي رسالة تلقائيًا أبدًا. كل رسالة يتم تجهيزها وفتحها في واتساب على حدة، وأنت اللي تضغط إرسال يدويًا.'
-          : 'ExpiryMate never sends messages automatically. Each message is prepared and opened in WhatsApp individually, and you press Send manually.'}
+          ? 'QualityMate لا يرسل أي رسالة تلقائيًا أبدًا. كل رسالة يتم تجهيزها وفتحها في واتساب على حدة، وأنت اللي تضغط إرسال يدويًا.'
+          : 'QualityMate never sends messages automatically. Each message is prepared and opened in WhatsApp individually, and you press Send manually.'}
       </div>
     </Modal>
   );

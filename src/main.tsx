@@ -16,7 +16,7 @@ if ('serviceWorker' in navigator) {
           if ('periodicSync' in anyReg) {
             const status = await navigator.permissions.query({ name: 'periodic-background-sync' as any });
             if (status.state === 'granted') {
-              await anyReg.periodicSync.register('expirymate-daily-check', { minInterval: 24 * 60 * 60 * 1000 });
+              await anyReg.periodicSync.register('qualitymate-daily-check', { minInterval: 24 * 60 * 60 * 1000 });
             }
           }
         } catch {

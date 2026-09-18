@@ -12,6 +12,7 @@ import ShelfLifeCalculator from './pages/ShelfLifeCalculator';
 import ReceivingRegister from './pages/ReceivingRegister';
 import NonConforming from './pages/NonConforming';
 import HealthCertificates from './pages/HealthCertificates';
+import Maintenance from './pages/Maintenance';
 import Search from './pages/Search';
 import Reports from './pages/Reports';
 import ReportsArchive from './pages/ReportsArchive';
@@ -37,6 +38,8 @@ function RouteSwitch() {
       return <NonConforming />;
     case 'healthCertificates':
       return <HealthCertificates />;
+    case 'maintenance':
+      return <Maintenance />;
     case 'search':
       return <Search />;
     case 'reports':

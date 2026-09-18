@@ -1,4 +1,4 @@
-// Core domain types for ExpiryMate
+// Core domain types for QualityMate
 
 export type ShelfLifeUnit = 'days' | 'months' | 'years';
 
@@ -94,6 +94,8 @@ export type ReportType =
   | 'before_half'
   | 'after_half'
   | 'by_category'
+  | 'expiry_followup'
+  | 'maintenance'
   | 'receiving'
   | 'non_conforming'
   | 'monthly_receiving'
@@ -166,5 +168,47 @@ export interface HealthCertificate {
   expiryDate: string; // ISO date
   notes?: string;
   imageDataUrl?: string; // base64, optional front-of-certificate photo
+  createdAt: string;
+}
+
+// Maintenance module: annual preventive maintenance plan, one item per scheduled
+// element per month. "Preventive" (وقائية) only — corrective work lives in MaintenanceRequest.
+export interface MaintenancePlanItem {
+  id: string;
+  siteName: string;
+  year: number;
+  month: number; // 1-12
+  elementName: string; // بند/عنصر الصيانة الوقائية
+  done: boolean;
+  doneDate?: string; // ISO date - set when marked done (directly or via a visit)
+  visitId?: string; // the visit during which it was completed, if any
+  notes?: string;
+  createdAt: string;
+}
+
+// Maintenance module: a logged site visit. Selecting pending plan items / requests
+// during a visit marks them done and stamps them with this visit's date.
+export interface MaintenanceVisit {
+  id: string;
+  siteName: string;
+  visitDate: string; // ISO date
+  technicianName: string;
+  supervisorName: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// Maintenance module: corrective ("علاجية") maintenance requests, tracked separately
+// from the preventive plan. Closing one records who closed it and when.
+export interface MaintenanceRequest {
+  id: string;
+  siteName: string;
+  requestDate: string; // ISO date
+  requesterName: string; // مقدم الطلب
+  description: string;
+  status: 'pending' | 'done';
+  closedDate?: string;
+  closedByName?: string; // من أغلق الطلب
+  visitId?: string; // the visit during which it was closed, if any
   createdAt: string;
 }

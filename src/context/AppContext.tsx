@@ -89,7 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   if (!ready || !settings) {
     return (
       <div className="splash-loading">
-        <div className="splash-logo">ExpiryMate</div>
+        <div className="splash-logo">QualityMate</div>
         <div className="splash-sub">مساعدك الذكي لإدارة الصلاحيات</div>
       </div>
     );

@@ -1,8 +1,8 @@
-// Minimal, dependency-free IndexedDB wrapper for ExpiryMate.
+// Minimal, dependency-free IndexedDB wrapper for QualityMate.
 // Everything is stored 100% locally in the browser. No network calls.
 
 const DB_NAME = 'expirymate-db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const STORES = {
   categories: 'categories',
@@ -15,7 +15,10 @@ export const STORES = {
   settings: 'settings',
   employees: 'employees',
   healthCertificates: 'healthCertificates',
-  notificationLog: 'notificationLog'
+  notificationLog: 'notificationLog',
+  maintenancePlanItems: 'maintenancePlanItems',
+  maintenanceVisits: 'maintenanceVisits',
+  maintenanceRequests: 'maintenanceRequests'
 } as const;
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];

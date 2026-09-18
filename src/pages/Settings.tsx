@@ -79,7 +79,7 @@ export default function Settings() {
 
   const doBackup = async () => {
     const data = await exportAllData();
-    downloadJson(`expirymate-backup-${new Date().toISOString().slice(0, 10)}`, data);
+    downloadJson(`qualitymate-backup-${new Date().toISOString().slice(0, 10)}`, data);
   };
 
   const doRestore = async (file: File) => {

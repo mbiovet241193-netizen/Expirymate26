@@ -1,9 +1,9 @@
 {
-  "name": "expirymate",
+  "name": "qualitymate",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ExpiryMate - Your Smart Quality Assistant / مساعدك الذكي لإدارة الصلاحيات",
+  "description": "QualityMate - Your Smart Quality Assistant / مساعدك الذكي لإدارة الصلاحيات",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

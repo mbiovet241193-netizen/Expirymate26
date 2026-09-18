@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo } from '../db/repositories';
+import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo, MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo } from '../db/repositories';
 import { generateId } from '../db/db';
-import type { Batch, Category, Employee, HealthCertificate, NonConformingRecord, Product, ReceivingSession, ReportType } from '../types';
+import type { Batch, Category, Employee, HealthCertificate, NonConformingRecord, Product, ReceivingSession, ReportType, MaintenancePlanItem, MaintenanceVisit, MaintenanceRequest } from '../types';
 import DateInput from '../components/common/DateInput';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
@@ -22,8 +22,10 @@ const REPORT_TYPES: { type: ReportType; ar: string; en: string; icon: string }[]
   { type: 'before_half', ar: 'قبل نصف الصلاحية', en: 'Before Half Shelf-Life', icon: '🟢' },
   { type: 'after_half', ar: 'بعد نصف الصلاحية', en: 'After Half Shelf-Life', icon: '🟡' },
   { type: 'by_category', ar: 'حسب الفئة', en: 'By Category', icon: '🗂️' },
+  { type: 'expiry_followup', ar: 'متابعة الصلاحية (مقسّمة حسب الفئة)', en: 'Expiry Follow-up (By Category)', icon: '📅' },
   { type: 'monthly_receiving', ar: 'تقرير الاستلام الشهري', en: 'Monthly Receiving Report', icon: '🚚' },
-  { type: 'health_certificates', ar: 'تقرير الشهادات الصحية', en: 'Health Certificates Report', icon: '🩺' }
+  { type: 'health_certificates', ar: 'تقرير الشهادات الصحية', en: 'Health Certificates Report', icon: '🩺' },
+  { type: 'maintenance', ar: 'تقرير الصيانة الشامل', en: 'Comprehensive Maintenance Report', icon: '🔧' }
 ];
 
 export default function Reports() {
@@ -36,6 +38,9 @@ export default function Reports() {
   const [nonConformingRecords, setNonConformingRecords] = useState<NonConformingRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [certificates, setCertificates] = useState<HealthCertificate[]>([]);
+  const [maintenancePlanItems, setMaintenancePlanItems] = useState<MaintenancePlanItem[]>([]);
+  const [maintenanceVisits, setMaintenanceVisits] = useState<MaintenanceVisit[]>([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
   const [execStats, setExecStats] = useState<DashboardStats | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -55,6 +60,9 @@ export default function Reports() {
       setNonConformingRecords(await NonConformingRepo.all());
       setEmployees(await EmployeeRepo.all());
       setCertificates(await HealthCertificateRepo.all());
+      setMaintenancePlanItems(await MaintenancePlanRepo.all());
+      setMaintenanceVisits(await MaintenanceVisitRepo.all());
+      setMaintenanceRequests(await MaintenanceRequestRepo.all());
       setExecStats(await computeDashboardStats());
     })();
   }, []);
@@ -154,6 +162,65 @@ export default function Reports() {
     return list.sort((a, b) => a.batch.expiryDate.localeCompare(b.batch.expiryDate));
   };
 
+  /**
+   * Expiry Follow-up report grouping: Category -> Product -> Batches.
+   * - Each product's own batches are sorted nearest-expiry-first.
+   * - Products within a category are ordered by their own nearest expiry date.
+   * - Categories are ordered the same way, by the nearest expiry date found in them.
+   */
+  const expiryFollowupGroups = () => {
+    const rows = computedBatches.filter((r) => r.product);
+
+    const byProduct = new Map<string, typeof rows>();
+    rows.forEach((r) => {
+      const key = r.product!.id;
+      if (!byProduct.has(key)) byProduct.set(key, []);
+      byProduct.get(key)!.push(r);
+    });
+
+    const productGroups = Array.from(byProduct.values()).map((group) => {
+      const sorted = [...group].sort((a, b) => a.batch.expiryDate.localeCompare(b.batch.expiryDate));
+      return { product: sorted[0].product!, nearestExpiry: sorted[0].batch.expiryDate, batches: sorted };
+    });
+
+    const byCategory = new Map<string, typeof productGroups>();
+    productGroups.forEach((pg) => {
+      const key = pg.product.categoryId;
+      if (!byCategory.has(key)) byCategory.set(key, []);
+      byCategory.get(key)!.push(pg);
+    });
+
+    const categoryGroups = Array.from(byCategory.entries()).map(([categoryId, products]) => {
+      const sortedProducts = [...products].sort((a, b) => a.nearestExpiry.localeCompare(b.nearestExpiry));
+      return { categoryId, categoryName: catName(categoryId), nearestExpiry: sortedProducts[0].nearestExpiry, products: sortedProducts };
+    });
+
+    return categoryGroups.sort((a, b) => a.nearestExpiry.localeCompare(b.nearestExpiry));
+  };
+
+  /** Comprehensive maintenance report for setupSite, scoped to the month/year of setupDate. */
+  const maintenanceReportData = () => {
+    const ref = new Date(setupDate);
+    const year = ref.getFullYear();
+    const month = ref.getMonth() + 1;
+
+    const visits = maintenanceVisits
+      .filter((v) => v.siteName === setupSite && new Date(v.visitDate).getFullYear() === year && new Date(v.visitDate).getMonth() + 1 === month)
+      .sort((a, b) => a.visitDate.localeCompare(b.visitDate));
+
+    const monthPlanItems = maintenancePlanItems.filter((i) => i.siteName === setupSite && i.year === year && i.month === month);
+    const planDone = monthPlanItems.filter((i) => i.done);
+    const planPending = monthPlanItems.filter((i) => !i.done);
+
+    const siteRequests = maintenanceRequests.filter((r) => r.siteName === setupSite);
+    const requestsClosedThisMonth = siteRequests.filter(
+      (r) => r.status === 'done' && r.closedDate && new Date(r.closedDate).getFullYear() === year && new Date(r.closedDate).getMonth() + 1 === month
+    );
+    const requestsStillPending = siteRequests.filter((r) => r.status === 'pending');
+
+    return { year, month, visits, planDone, planPending, requestsClosedThisMonth, requestsStillPending };
+  };
+
   const reportTitle = (type: ReportType) => {
     const meta = REPORT_TYPES.find((r) => r.type === type)!;
     if (type === 'full') {
@@ -251,6 +318,60 @@ export default function Reports() {
           Notes: row.notes
         }))
       );
+      return;
+    }
+
+    if (type === 'expiry_followup') {
+      const groups = expiryFollowupGroups();
+      const rows: Record<string, string | number>[] = [];
+      groups.forEach((cat) => {
+        cat.products.forEach((pg) => {
+          pg.batches.forEach((r) => {
+            rows.push({
+              [lang === 'ar' ? 'الفئة' : 'Category']: cat.categoryName,
+              [lang === 'ar' ? 'الصنف' : 'Product']: pg.product.name,
+              [lang === 'ar' ? 'تاريخ الإنتاج' : 'Production Date']: r.batch.productionDate,
+              [lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date']: r.batch.expiryDate,
+              [lang === 'ar' ? 'الأيام المتبقية' : 'Remaining Days']: r.remainingDays,
+              [lang === 'ar' ? 'الحالة' : 'Status']: r.status
+            });
+          });
+        });
+      });
+      await ReportRepo.save({ id: generateId(), type, title: reportTitle(type), createdAt: new Date().toISOString(), payload: rows });
+      exportToCsv(`report-${type}`, rows);
+      return;
+    }
+
+    if (type === 'maintenance') {
+      const data = maintenanceReportData();
+      const rows: Record<string, string | number>[] = [];
+      data.visits.forEach((v) =>
+        rows.push({
+          [lang === 'ar' ? 'القسم' : 'Section']: lang === 'ar' ? 'زيارة' : 'Visit',
+          [lang === 'ar' ? 'التفاصيل' : 'Details']: `${v.visitDate} - ${v.technicianName} / ${v.supervisorName}`
+        })
+      );
+      data.planDone.forEach((i) =>
+        rows.push({ [lang === 'ar' ? 'القسم' : 'Section']: lang === 'ar' ? 'خطة - تم' : 'Plan - Done', [lang === 'ar' ? 'التفاصيل' : 'Details']: i.elementName })
+      );
+      data.planPending.forEach((i) =>
+        rows.push({ [lang === 'ar' ? 'القسم' : 'Section']: lang === 'ar' ? 'خطة - لم يتم' : 'Plan - Pending', [lang === 'ar' ? 'التفاصيل' : 'Details']: i.elementName })
+      );
+      data.requestsClosedThisMonth.forEach((r) =>
+        rows.push({
+          [lang === 'ar' ? 'القسم' : 'Section']: lang === 'ar' ? 'طلب - تم' : 'Request - Done',
+          [lang === 'ar' ? 'التفاصيل' : 'Details']: `${r.description} (${r.closedDate})`
+        })
+      );
+      data.requestsStillPending.forEach((r) =>
+        rows.push({
+          [lang === 'ar' ? 'القسم' : 'Section']: lang === 'ar' ? 'طلب - معلق' : 'Request - Pending',
+          [lang === 'ar' ? 'التفاصيل' : 'Details']: r.description
+        })
+      );
+      await ReportRepo.save({ id: generateId(), type, title: reportTitle(type), createdAt: new Date().toISOString(), payload: rows });
+      exportToCsv(`report-${type}`, rows);
       return;
     }
 
@@ -591,6 +712,280 @@ export default function Reports() {
                 {lang === 'ar' ? 'التوقيع' : 'Signature'}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeReport === 'expiry_followup') {
+    const groups = expiryFollowupGroups();
+    return (
+      <div>
+        <div className="toolbar no-print">
+          <button className="btn btn-outline" onClick={() => setActiveReport(null)}>
+            {lang === 'ar' ? 'رجوع' : 'Back'}
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline" onClick={() => saveAndExport(activeReport)}>
+              {t('exportExcel')}
+            </button>
+            <button className="btn btn-primary" onClick={() => window.print()}>
+              🖨️ {t('print')}
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {settings.companyLogo && <img src={settings.companyLogo} alt="logo" style={{ height: 50 }} />}
+              <div>
+                <div style={{ fontWeight: 800 }}>{settings.companyName || 'Company Name'}</div>
+                {setupSite && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
+                    {lang === 'ar' ? 'الموقع' : 'Site'}: {setupSite}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: 'end' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{reportTitle(activeReport)}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
+                {new Date().toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+              </div>
+            </div>
+          </div>
+
+          {groups.length === 0 ? (
+            <div className="empty-state">{t('noData')}</div>
+          ) : (
+            groups.map((cat, ci) => (
+              <div key={cat.categoryId} style={{ marginBottom: 26, pageBreakInside: 'avoid' }}>
+                <h3 className="report-section-title">
+                  {ci + 1}. {cat.categoryName}
+                </h3>
+                {cat.products.map((pg) => (
+                  <div key={pg.product.id} style={{ marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.92rem', margin: '10px 0 6px' }}>{pg.product.name}</div>
+                    <div className="desktop-only-table">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>{t('productionDate')}</th>
+                            <th>{t('expiryDate')}</th>
+                            <th>{t('remainingDays')}</th>
+                            <th>{t('status')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pg.batches.map((r) => (
+                            <tr key={r.batch.id}>
+                              <td>{r.batch.productionDate}</td>
+                              <td>{r.batch.expiryDate}</td>
+                              <td>{r.remainingDays}</td>
+                              <td>
+                                <StatusBadge status={r.status} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 50, flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div>{t('doctorName')}: {setupDoctor || settings.doctorName || '—'}</div>
+              <div>{t('doctorCode')}: {settings.doctorCode || '—'}</div>
+              <div style={{ borderTop: '1px solid var(--outline)', width: 200, marginTop: 30, paddingTop: 6 }}>
+                {lang === 'ar' ? 'التوقيع' : 'Signature'}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)' }}>{lang === 'ar' ? 'صفحة 1' : 'Page 1'}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeReport === 'maintenance') {
+    const data = maintenanceReportData();
+    const monthLabelStr = new Date(setupDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' });
+    return (
+      <div>
+        <div className="toolbar no-print">
+          <button className="btn btn-outline" onClick={() => setActiveReport(null)}>
+            {lang === 'ar' ? 'رجوع' : 'Back'}
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline" onClick={() => saveAndExport(activeReport)}>
+              {t('exportExcel')}
+            </button>
+            <button className="btn btn-primary" onClick={() => window.print()}>
+              🖨️ {t('print')}
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {settings.companyLogo && <img src={settings.companyLogo} alt="logo" style={{ height: 50 }} />}
+              <div>
+                <div style={{ fontWeight: 800 }}>{settings.companyName || 'Company Name'}</div>
+                {setupSite && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
+                    {lang === 'ar' ? 'الموقع' : 'Site'}: {setupSite}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: 'end' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{reportTitle(activeReport)}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>{monthLabelStr}</div>
+            </div>
+          </div>
+
+          <h3 className="report-section-title">{lang === 'ar' ? '١. زيارات الصيانة هذا الشهر' : '1. Visits This Month'}</h3>
+          <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+            {lang === 'ar' ? `عدد الزيارات: ${data.visits.length}` : `Number of visits: ${data.visits.length}`}
+          </div>
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                  <th>{lang === 'ar' ? 'الفني' : 'Technician'}</th>
+                  <th>{lang === 'ar' ? 'المشرف' : 'Supervisor'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.visits.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>{lang === 'ar' ? 'لا توجد زيارات' : 'No visits'}</td>
+                  </tr>
+                ) : (
+                  data.visits.map((v) => (
+                    <tr key={v.id}>
+                      <td>{v.visitDate}</td>
+                      <td>{v.technicianName}</td>
+                      <td>{v.supervisorName}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 className="report-section-title">{lang === 'ar' ? '٢. خطة الصيانة الوقائية — ما تم' : '2. Preventive Plan — Completed'}</h3>
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <tbody>
+                {data.planDone.length === 0 ? (
+                  <tr>
+                    <td>{lang === 'ar' ? 'لا يوجد' : 'None'}</td>
+                  </tr>
+                ) : (
+                  data.planDone.map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.elementName}</td>
+                      <td>{i.doneDate}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 className="report-section-title">{lang === 'ar' ? '٣. خطة الصيانة الوقائية — لم يتم' : '3. Preventive Plan — Not Done'}</h3>
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <tbody>
+                {data.planPending.length === 0 ? (
+                  <tr>
+                    <td>{lang === 'ar' ? 'لا يوجد' : 'None'}</td>
+                  </tr>
+                ) : (
+                  data.planPending.map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.elementName}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 className="report-section-title">{lang === 'ar' ? '٤. طلبات الصيانة المغلقة هذا الشهر' : '4. Requests Closed This Month'}</h3>
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>{lang === 'ar' ? 'الوصف' : 'Description'}</th>
+                  <th>{lang === 'ar' ? 'تاريخ الإنهاء' : 'Closed Date'}</th>
+                  <th>{lang === 'ar' ? 'من أغلق الطلب' : 'Closed By'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.requestsClosedThisMonth.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>{lang === 'ar' ? 'لا يوجد' : 'None'}</td>
+                  </tr>
+                ) : (
+                  data.requestsClosedThisMonth.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.description}</td>
+                      <td>{r.closedDate}</td>
+                      <td>{r.closedByName}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 className="report-section-title">{lang === 'ar' ? '٥. طلبات الصيانة المعلقة حاليًا' : '5. Currently Pending Requests'}</h3>
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>{lang === 'ar' ? 'الوصف' : 'Description'}</th>
+                  <th>{lang === 'ar' ? 'تاريخ الطلب' : 'Request Date'}</th>
+                  <th>{lang === 'ar' ? 'مقدم الطلب' : 'Requester'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.requestsStillPending.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>{lang === 'ar' ? 'لا يوجد' : 'None'}</td>
+                  </tr>
+                ) : (
+                  data.requestsStillPending.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.description}</td>
+                      <td>{r.requestDate}</td>
+                      <td>{r.requesterName}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 50, flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div>{t('doctorName')}: {setupDoctor || settings.doctorName || '—'}</div>
+              <div>{t('doctorCode')}: {settings.doctorCode || '—'}</div>
+              <div style={{ borderTop: '1px solid var(--outline)', width: 200, marginTop: 30, paddingTop: 6 }}>
+                {lang === 'ar' ? 'التوقيع' : 'Signature'}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)' }}>{lang === 'ar' ? 'صفحة 1' : 'Page 1'}</div>
           </div>
         </div>
       </div>

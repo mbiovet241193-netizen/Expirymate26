@@ -25,13 +25,13 @@ export default function About() {
         />
         <h1 style={{ margin: '0 0 4px', fontWeight: 800 }}>Dr. Deja</h1>
         <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>
-          {lang === 'ar' ? 'المساعدة الذكية داخل ExpiryMate' : 'The Smart Quality Assistant inside ExpiryMate'}
+          {lang === 'ar' ? 'المساعدة الذكية داخل QualityMate' : 'The Smart Quality Assistant inside QualityMate'}
         </div>
       </div>
 
       <div className="card" style={{ textAlign: 'center', padding: 30 }}>
         <div style={{ fontSize: '2rem' }}>🛡️</div>
-        <h1 style={{ margin: '8px 0 4px', fontWeight: 800 }}>ExpiryMate</h1>
+        <h1 style={{ margin: '8px 0 4px', fontWeight: 800 }}>QualityMate</h1>
         <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>Your Smart Quality Assistant</div>
         <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>مساعدك الذكي لإدارة ومراقبة الصلاحيات</div>
       </div>
@@ -40,8 +40,8 @@ export default function About() {
         <h2 className="section-title">{lang === 'ar' ? 'نظرة عامة على التطبيق' : 'Application Overview'}</h2>
         <p>
           {lang === 'ar'
-            ? 'ExpiryMate هو مساعد متخصص لأطباء الجودة وأخصائيي سلامة الغذاء في شركات التموين والمصانع الغذائية والمطابخ المركزية والمخازن، لإدارة تواريخ الصلاحية وتطبيق نظام FEFO وتسجيل الاستلام وتتبع المنتجات غير المطابقة، دون الحاجة لأي اتصال بالإنترنت.'
-            : 'ExpiryMate is a specialized assistant for Quality Doctors and Food Safety Specialists in catering companies, food factories, central kitchens, and warehouses — for expiry management, FEFO, receiving records, and non-conforming product tracking, fully offline.'}
+            ? 'QualityMate هو مساعد متخصص لأطباء الجودة وأخصائيي سلامة الغذاء في شركات التموين والمصانع الغذائية والمطابخ المركزية والمخازن، لإدارة تواريخ الصلاحية وتطبيق نظام FEFO وتسجيل الاستلام وتتبع المنتجات غير المطابقة، دون الحاجة لأي اتصال بالإنترنت.'
+            : 'QualityMate is a specialized assistant for Quality Doctors and Food Safety Specialists in catering companies, food factories, central kitchens, and warehouses — for expiry management, FEFO, receiving records, and non-conforming product tracking, fully offline.'}
         </p>
       </div>
 

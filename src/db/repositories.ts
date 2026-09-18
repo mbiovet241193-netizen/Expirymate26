@@ -10,7 +10,10 @@ import type {
   AppSettings,
   Employee,
   HealthCertificate,
-  NotificationSettings
+  NotificationSettings,
+  MaintenancePlanItem,
+  MaintenanceVisit,
+  MaintenanceRequest
 } from '../types';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -188,6 +191,27 @@ export const HealthCertificateRepo = {
   all: () => dbGetAll<HealthCertificate>(STORES.healthCertificates),
   save: (c: HealthCertificate) => dbPut(STORES.healthCertificates, c),
   remove: (id: string) => dbDelete(STORES.healthCertificates, id)
+};
+
+// Maintenance module: annual preventive plan items (one per element per month)
+export const MaintenancePlanRepo = {
+  all: () => dbGetAll<MaintenancePlanItem>(STORES.maintenancePlanItems),
+  save: (i: MaintenancePlanItem) => dbPut(STORES.maintenancePlanItems, i),
+  remove: (id: string) => dbDelete(STORES.maintenancePlanItems, id)
+};
+
+// Maintenance module: logged site visits
+export const MaintenanceVisitRepo = {
+  all: () => dbGetAll<MaintenanceVisit>(STORES.maintenanceVisits),
+  save: (v: MaintenanceVisit) => dbPut(STORES.maintenanceVisits, v),
+  remove: (id: string) => dbDelete(STORES.maintenanceVisits, id)
+};
+
+// Maintenance module: corrective (علاجية) maintenance requests
+export const MaintenanceRequestRepo = {
+  all: () => dbGetAll<MaintenanceRequest>(STORES.maintenanceRequests),
+  save: (r: MaintenanceRequest) => dbPut(STORES.maintenanceRequests, r),
+  remove: (id: string) => dbDelete(STORES.maintenanceRequests, id)
 };
 
 // Notification dedup log: one entry per (date + category), so the same

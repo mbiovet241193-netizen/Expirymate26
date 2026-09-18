@@ -30,7 +30,7 @@ function autoMask(raw: string): string {
 }
 
 /**
- * Hybrid date input used everywhere a date is entered in ExpiryMate.
+ * Hybrid date input used everywhere a date is entered in QualityMate.
  *
  * Provides BOTH:
  *  - Manual typing, in DD/MM/YYYY format with automatic "/" insertion.

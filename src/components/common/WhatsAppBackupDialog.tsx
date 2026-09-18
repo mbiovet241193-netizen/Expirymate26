@@ -58,7 +58,7 @@ export default function WhatsAppBackupDialog({
         // (it isn't on their allowed file-type list), causing a silent fallback to
         // download instead of opening the share sheet. text/plain is universally
         // accepted, and the content itself is still the same valid JSON backup.
-        const filename = `expirymate-backup-${new Date().toISOString().slice(0, 10)}.txt`;
+        const filename = `qualitymate-backup-${new Date().toISOString().slice(0, 10)}.txt`;
         const f = new File([json], filename, { type: 'text/plain' });
         if (!cancelled) {
           setFile(f);

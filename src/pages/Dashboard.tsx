@@ -33,6 +33,7 @@ export default function Dashboard() {
     { route: 'receiving', icon: '🚚', label: t('receiving') },
     { route: 'nonConforming', icon: '⚠️', label: t('nonConforming') },
     { route: 'healthCertificates', icon: '🩺', label: t('healthCertificates') },
+    { route: 'maintenance', icon: '🔧', label: lang === 'ar' ? 'الصيانة' : 'Maintenance' },
     { route: 'search', icon: '🔍', label: t('search') },
     { route: 'reports', icon: '📊', label: t('reports') },
     { route: 'reportsArchive', icon: '🗄️', label: t('reportsArchive') },

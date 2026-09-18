@@ -63,7 +63,7 @@ export function buildWhatsAppTemplates(
         `السلام عليكم أستاذ/ ${employee.name}.\n\nنود تذكيركم بأن شهادتكم الصحية ستنتهي بتاريخ:\n${formatWhatsAppDate(
           effectiveExpiryDate!,
           lang
-        )}\n\nيرجى سرعة تجديد الشهادة الصحية قبل موعد انتهائها لضمان استمرار العمل داخل المنشآت الغذائية.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
+        )}\n\nيرجى سرعة تجديد الشهادة الصحية قبل موعد انتهائها لضمان استمرار العمل داخل المنشآت الغذائية.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة QualityMate.`
     },
     expired: {
       label: lang === 'ar' ? 'شهادة صحية منتهية' : 'Health Certificate Expired',
@@ -72,13 +72,13 @@ export function buildWhatsAppTemplates(
         `السلام عليكم أستاذ/ ${employee.name}.\n\nنحيطكم علماً بانتهاء صلاحية شهادتكم الصحية بتاريخ:\n${formatWhatsAppDate(
           effectiveExpiryDate!,
           lang
-        )}\n\nولا يجوز العمل داخل المنشآت الغذائية إلا بعد تجديد الشهادة الصحية.\n\nيرجى سرعة اتخاذ الإجراءات اللازمة.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
+        )}\n\nولا يجوز العمل داخل المنشآت الغذائية إلا بعد تجديد الشهادة الصحية.\n\nيرجى سرعة اتخاذ الإجراءات اللازمة.\n\nشكراً لتعاونكم.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة QualityMate.`
     },
     insurance: {
       label: lang === 'ar' ? 'رقم التأمين الطبي' : 'Medical Insurance Card Number',
       enabled: hasInsurance,
       build: () =>
-        `السلام عليكم أستاذ/ ${employee.name}.\n\nبناءً على طلبكم، نرسل لكم رقم كارت التأمين الطبي الخاص بكم:\n${employee.insuranceNumber}\n\nمع خالص تمنياتنا لكم بدوام الصحة والعافية.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة ExpiryMate.`
+        `السلام عليكم أستاذ/ ${employee.name}.\n\nبناءً على طلبكم، نرسل لكم رقم كارت التأمين الطبي الخاص بكم:\n${employee.insuranceNumber}\n\nمع خالص تمنياتنا لكم بدوام الصحة والعافية.\n\nتحياتنا،\n${companyName}\n\nتم إنشاء هذه الرسالة بواسطة QualityMate.`
     }
   };
 }

@@ -88,8 +88,8 @@ export function drDejaNotificationIntro(lang: Lang, gender: DoctorGender = 'male
 }
 
 export const DR_DEJA_INTRO = {
-  ar: 'أنا الدكتورة ديجا.\nالمساعدة الذكية داخل ExpiryMate.\nسأساعدك اليوم في متابعة الصلاحيات والشهادات الصحية وتقارير الجودة.',
-  en: 'I\u2019m Dr. Deja.\nThe smart assistant inside ExpiryMate.\nI\u2019ll help you track expiry dates, health certificates, and quality reports today.'
+  ar: 'أنا الدكتورة ديجا.\nالمساعدة الذكية داخل QualityMate.\nسأساعدك اليوم في متابعة الصلاحيات والشهادات الصحية وتقارير الجودة.',
+  en: 'I\u2019m Dr. Deja.\nThe smart assistant inside QualityMate.\nI\u2019ll help you track expiry dates, health certificates, and quality reports today.'
 };
 
 export const DR_DEJA_ALL_CLEAR: { ar: Record<DoctorGender, string>; en: string } = {
