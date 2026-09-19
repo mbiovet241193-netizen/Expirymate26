@@ -13,7 +13,14 @@ import type {
   NotificationSettings,
   MaintenancePlanItem,
   MaintenanceVisit,
-  MaintenanceRequest
+  MaintenanceRequest,
+  ShiftNote,
+  PestControlVisit,
+  TrainingPlanItem,
+  TrainingRecord,
+  HygieneViolation,
+  DeepCleaningPlanItem,
+  DeepCleaningExecution
 } from '../types';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -95,7 +102,8 @@ export const ProductRepo = {
 export const BatchRepo = {
   all: () => dbGetAll<Batch>(STORES.batches),
   save: (b: Batch) => dbPut(STORES.batches, b),
-  remove: (id: string) => dbDelete(STORES.batches, id)
+  remove: (id: string) => dbDelete(STORES.batches, id),
+  clearAll: () => dbClear(STORES.batches)
 };
 
 // Legacy shelf-life database (deprecated - kept only to migrate old data into Products).
@@ -212,6 +220,55 @@ export const MaintenanceRequestRepo = {
   all: () => dbGetAll<MaintenanceRequest>(STORES.maintenanceRequests),
   save: (r: MaintenanceRequest) => dbPut(STORES.maintenanceRequests, r),
   remove: (id: string) => dbDelete(STORES.maintenanceRequests, id)
+};
+
+// Shift Notes: daily notes logged per site
+export const ShiftNoteRepo = {
+  all: () => dbGetAll<ShiftNote>(STORES.shiftNotes),
+  save: (n: ShiftNote) => dbPut(STORES.shiftNotes, n),
+  remove: (id: string) => dbDelete(STORES.shiftNotes, id)
+};
+
+// Pest Control: logged visits per site
+export const PestControlRepo = {
+  all: () => dbGetAll<PestControlVisit>(STORES.pestControlVisits),
+  save: (v: PestControlVisit) => dbPut(STORES.pestControlVisits, v),
+  remove: (id: string) => dbDelete(STORES.pestControlVisits, id)
+};
+
+// Training: annual plan items
+export const TrainingPlanRepo = {
+  all: () => dbGetAll<TrainingPlanItem>(STORES.trainingPlanItems),
+  save: (i: TrainingPlanItem) => dbPut(STORES.trainingPlanItems, i),
+  remove: (id: string) => dbDelete(STORES.trainingPlanItems, id)
+};
+
+// Training: actual delivered records (planned or unplanned)
+export const TrainingRecordRepo = {
+  all: () => dbGetAll<TrainingRecord>(STORES.trainingRecords),
+  save: (r: TrainingRecord) => dbPut(STORES.trainingRecords, r),
+  remove: (id: string) => dbDelete(STORES.trainingRecords, id)
+};
+
+// Personal Hygiene: daily walk-through violations
+export const HygieneViolationRepo = {
+  all: () => dbGetAll<HygieneViolation>(STORES.hygieneViolations),
+  save: (v: HygieneViolation) => dbPut(STORES.hygieneViolations, v),
+  remove: (id: string) => dbDelete(STORES.hygieneViolations, id)
+};
+
+// Deep Cleaning: weekly plan items
+export const DeepCleaningPlanRepo = {
+  all: () => dbGetAll<DeepCleaningPlanItem>(STORES.deepCleaningPlanItems),
+  save: (i: DeepCleaningPlanItem) => dbPut(STORES.deepCleaningPlanItems, i),
+  remove: (id: string) => dbDelete(STORES.deepCleaningPlanItems, id)
+};
+
+// Deep Cleaning: daily execution follow-up
+export const DeepCleaningExecutionRepo = {
+  all: () => dbGetAll<DeepCleaningExecution>(STORES.deepCleaningExecutions),
+  save: (e: DeepCleaningExecution) => dbPut(STORES.deepCleaningExecutions, e),
+  remove: (id: string) => dbDelete(STORES.deepCleaningExecutions, id)
 };
 
 // Notification dedup log: one entry per (date + category), so the same

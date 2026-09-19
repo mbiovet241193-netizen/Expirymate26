@@ -1,8 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo, MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo } from '../db/repositories';
+import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo, MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo, ShiftNoteRepo, PestControlRepo, TrainingPlanRepo, TrainingRecordRepo, HygieneViolationRepo, DeepCleaningPlanRepo, DeepCleaningExecutionRepo } from '../db/repositories';
 import { generateId } from '../db/db';
-import type { Batch, Category, Employee, HealthCertificate, NonConformingRecord, Product, ReceivingSession, ReportType, MaintenancePlanItem, MaintenanceVisit, MaintenanceRequest } from '../types';
+import type {
+  Batch,
+  Category,
+  Employee,
+  HealthCertificate,
+  NonConformingRecord,
+  Product,
+  ReceivingSession,
+  ReportType,
+  MaintenancePlanItem,
+  MaintenanceVisit,
+  MaintenanceRequest,
+  ShiftNote,
+  PestControlVisit,
+  TrainingPlanItem,
+  TrainingRecord,
+  HygieneViolation,
+  DeepCleaningPlanItem,
+  DeepCleaningExecution
+} from '../types';
 import DateInput from '../components/common/DateInput';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
@@ -16,16 +35,11 @@ import { useRouter } from '../router/Router';
 
 const REPORT_TYPES: { type: ReportType; ar: string; en: string; icon: string }[] = [
   { type: 'full', ar: 'التقرير الشامل الشهري', en: 'Monthly Comprehensive Report', icon: '📋' },
-  { type: 'expired', ar: 'منتجات منتهية', en: 'Expired Products', icon: '🔴' },
-  { type: 'near_expiry', ar: 'خلال 30 يوم', en: 'Within 30 Days', icon: '🔵' },
-  { type: 'expiring_soon', ar: 'ستنتهي قريباً', en: 'Expiring Soon', icon: '🟠' },
-  { type: 'before_half', ar: 'قبل نصف الصلاحية', en: 'Before Half Shelf-Life', icon: '🟢' },
-  { type: 'after_half', ar: 'بعد نصف الصلاحية', en: 'After Half Shelf-Life', icon: '🟡' },
-  { type: 'by_category', ar: 'حسب الفئة', en: 'By Category', icon: '🗂️' },
-  { type: 'expiry_followup', ar: 'متابعة الصلاحية (مقسّمة حسب الفئة)', en: 'Expiry Follow-up (By Category)', icon: '📅' },
+  { type: 'expiry_followup', ar: 'متابعة الصلاحية (فئة معينة أو الكل)', en: 'Expiry Follow-up (By Category or All)', icon: '📅' },
   { type: 'monthly_receiving', ar: 'تقرير الاستلام الشهري', en: 'Monthly Receiving Report', icon: '🚚' },
   { type: 'health_certificates', ar: 'تقرير الشهادات الصحية', en: 'Health Certificates Report', icon: '🩺' },
-  { type: 'maintenance', ar: 'تقرير الصيانة الشامل', en: 'Comprehensive Maintenance Report', icon: '🔧' }
+  { type: 'maintenance', ar: 'تقرير الصيانة الشامل', en: 'Comprehensive Maintenance Report', icon: '🔧' },
+  { type: 'hygiene_violations', ar: 'تقرير مخالفات النظافة الشخصية', en: 'Personal Hygiene Violations Report', icon: '🧼' }
 ];
 
 export default function Reports() {
@@ -41,6 +55,13 @@ export default function Reports() {
   const [maintenancePlanItems, setMaintenancePlanItems] = useState<MaintenancePlanItem[]>([]);
   const [maintenanceVisits, setMaintenanceVisits] = useState<MaintenanceVisit[]>([]);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
+  const [shiftNotes, setShiftNotes] = useState<ShiftNote[]>([]);
+  const [pestControlVisits, setPestControlVisits] = useState<PestControlVisit[]>([]);
+  const [trainingPlanItems, setTrainingPlanItems] = useState<TrainingPlanItem[]>([]);
+  const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
+  const [hygieneViolations, setHygieneViolations] = useState<HygieneViolation[]>([]);
+  const [deepCleaningPlanItems, setDeepCleaningPlanItems] = useState<DeepCleaningPlanItem[]>([]);
+  const [deepCleaningExecutions, setDeepCleaningExecutions] = useState<DeepCleaningExecution[]>([]);
   const [execStats, setExecStats] = useState<DashboardStats | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -50,6 +71,7 @@ export default function Reports() {
   const [setupSite, setSetupSite] = useState('');
   const [setupDoctor, setSetupDoctor] = useState('');
   const [setupDate, setSetupDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [setupEndDate, setSetupEndDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     (async () => {
@@ -63,6 +85,13 @@ export default function Reports() {
       setMaintenancePlanItems(await MaintenancePlanRepo.all());
       setMaintenanceVisits(await MaintenanceVisitRepo.all());
       setMaintenanceRequests(await MaintenanceRequestRepo.all());
+      setShiftNotes(await ShiftNoteRepo.all());
+      setPestControlVisits(await PestControlRepo.all());
+      setTrainingPlanItems(await TrainingPlanRepo.all());
+      setTrainingRecords(await TrainingRecordRepo.all());
+      setHygieneViolations(await HygieneViolationRepo.all());
+      setDeepCleaningPlanItems(await DeepCleaningPlanRepo.all());
+      setDeepCleaningExecutions(await DeepCleaningExecutionRepo.all());
       setExecStats(await computeDashboardStats());
     })();
   }, []);
@@ -152,13 +181,7 @@ export default function Reports() {
   };
 
   const filteredForReport = (type: ReportType) => {
-    let list = computedBatches.filter((r) => r.product);
-    if (type === 'expired') list = list.filter((r) => r.status === 'expired');
-    if (type === 'near_expiry') list = list.filter((r) => r.status === 'near_expiry');
-    if (type === 'expiring_soon') list = list.filter((r) => r.status === 'expiring_soon');
-    if (type === 'before_half') list = list.filter((r) => r.status === 'before_half');
-    if (type === 'after_half') list = list.filter((r) => r.status === 'after_half');
-    if (type === 'by_category' && categoryFilter) list = list.filter((r) => r.product!.categoryId === categoryFilter);
+    const list = computedBatches.filter((r) => r.product);
     return list.sort((a, b) => a.batch.expiryDate.localeCompare(b.batch.expiryDate));
   };
 
@@ -169,7 +192,7 @@ export default function Reports() {
    * - Categories are ordered the same way, by the nearest expiry date found in them.
    */
   const expiryFollowupGroups = () => {
-    const rows = computedBatches.filter((r) => r.product);
+    const rows = computedBatches.filter((r) => r.product && (!categoryFilter || r.product!.categoryId === categoryFilter));
 
     const byProduct = new Map<string, typeof rows>();
     rows.forEach((r) => {
@@ -196,6 +219,79 @@ export default function Reports() {
     });
 
     return categoryGroups.sort((a, b) => a.nearestExpiry.localeCompare(b.nearestExpiry));
+  };
+
+  /**
+   * All new operational sections (maintenance visits, pest control, shift notes,
+   * personal hygiene, deep cleaning, training) for setupSite over the
+   * [setupDate, setupEndDate] period, used by the comprehensive report.
+   */
+  const operationalReportData = () => {
+    const from = setupDate;
+    const to = setupEndDate >= setupDate ? setupEndDate : setupDate;
+    const inRange = (d: string) => d >= from && d <= to;
+
+    // Maintenance: visits within the period, and requests that are currently pending (a live status).
+    const visits = maintenanceVisits.filter((v) => v.siteName === setupSite && inRange(v.visitDate)).sort((a, b) => a.visitDate.localeCompare(b.visitDate));
+    const pendingRequests = maintenanceRequests.filter((r) => r.siteName === setupSite && r.status === 'pending');
+
+    // Pest control: visits within the period.
+    const pestVisits = pestControlVisits.filter((v) => v.siteName === setupSite && inRange(v.visitDate)).sort((a, b) => a.visitDate.localeCompare(b.visitDate));
+
+    // Shift notes within the period.
+    const shiftNotesInRange = shiftNotes.filter((n) => n.siteName === setupSite && inRange(n.date)).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Personal hygiene: violations within the period, split by status.
+    const violations = hygieneViolations.filter((v) => v.siteName === setupSite && inRange(v.date));
+    const warningCount = violations.filter((v) => v.status === 'warning').length;
+    const deductionCount = violations.filter((v) => v.status === 'deduction').length;
+
+    // Deep cleaning: expected vs. fulfilled scheduled slots across every day of the period.
+    const sitePlanItems = deepCleaningPlanItems.filter((i) => i.siteName === setupSite);
+    let expectedSlots = 0;
+    let fulfilledSlots = 0;
+    for (let d = new Date(from); d.toISOString().slice(0, 10) <= to; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const weekday = d.getDay();
+      const expectedToday = sitePlanItems.filter((i) => i.daysOfWeek.includes(weekday));
+      expectedSlots += expectedToday.length;
+      for (const item of expectedToday) {
+        if (deepCleaningExecutions.some((e) => e.siteName === setupSite && e.date === dateStr && e.planItemId === item.id)) fulfilledSlots++;
+      }
+    }
+    const deepCleaningCompletionPercent = expectedSlots === 0 ? 0 : Math.round((fulfilledSlots / expectedSlots) * 100);
+
+    // Training: plan items whose month overlaps the period, plus all delivered records within the period.
+    const fromMonthStart = new Date(new Date(from).getFullYear(), new Date(from).getMonth(), 1);
+    const toMonthStart = new Date(new Date(to).getFullYear(), new Date(to).getMonth(), 1);
+    const trainingPlanInRange = trainingPlanItems.filter((i) => {
+      if (i.siteName !== setupSite) return false;
+      const itemMonthStart = new Date(i.year, i.month - 1, 1);
+      return itemMonthStart >= fromMonthStart && itemMonthStart <= toMonthStart;
+    });
+    const trainingPlanDone = trainingPlanInRange.filter((i) => i.done);
+    const trainingPlanPending = trainingPlanInRange.filter((i) => !i.done);
+    const recordsInRange = trainingRecords.filter((r) => r.siteName === setupSite && inRange(r.date));
+    const unplannedRecords = recordsInRange.filter((r) => !r.planItemId);
+    const totalTrainees = recordsInRange.reduce((sum, r) => sum + (r.traineeCount || 0), 0);
+
+    return {
+      from,
+      to,
+      visits,
+      pendingRequests,
+      pestVisits,
+      shiftNotesInRange,
+      violations,
+      warningCount,
+      deductionCount,
+      deepCleaningItemCount: sitePlanItems.length,
+      deepCleaningCompletionPercent,
+      trainingPlanDone,
+      trainingPlanPending,
+      unplannedRecords,
+      totalTrainees
+    };
   };
 
   /** Comprehensive maintenance report for setupSite, scoped to the month/year of setupDate. */
@@ -235,6 +331,7 @@ export default function Reports() {
     setSetupSite(settings.siteNames[0] ?? '');
     setSetupDoctor(settings.doctorName ?? '');
     setSetupDate(new Date().toISOString().slice(0, 10));
+    setSetupEndDate(new Date().toISOString().slice(0, 10));
     setShowSetupDialog(true);
   };
 
@@ -267,20 +364,72 @@ export default function Reports() {
         [lang === 'ar' ? 'السبب' : 'Reason']: r.reason,
         [lang === 'ar' ? 'القرار' : 'Decision']: r.decision
       }));
+      const ops = operationalReportData();
+      const maintenanceVisitRows = ops.visits.map((v) => ({
+        [lang === 'ar' ? 'التاريخ' : 'Date']: v.visitDate,
+        [lang === 'ar' ? 'الفني' : 'Technician']: v.technicianName,
+        [lang === 'ar' ? 'المشرف' : 'Supervisor']: v.supervisorName
+      }));
+      const maintenanceRequestRows = ops.pendingRequests.map((r) => ({
+        [lang === 'ar' ? 'الوصف' : 'Description']: r.description,
+        [lang === 'ar' ? 'الحالة' : 'Status']: lang === 'ar' ? 'معلق' : 'Pending'
+      }));
+      const pestControlRows = ops.pestVisits.map((v) => ({
+        [lang === 'ar' ? 'التاريخ' : 'Date']: v.visitDate,
+        [lang === 'ar' ? 'الشركة' : 'Company']: v.companyName,
+        [lang === 'ar' ? 'القائم بالمكافحة' : 'Performed By']: v.performedByName
+      }));
+      const shiftNoteRows = ops.shiftNotesInRange.map((n) => ({
+        [lang === 'ar' ? 'التاريخ' : 'Date']: n.date,
+        [lang === 'ar' ? 'الملاحظة' : 'Note']: n.text
+      }));
+      const hygieneRows = [
+        { [lang === 'ar' ? 'البيان' : 'Item']: lang === 'ar' ? 'إجمالي المخالفات' : 'Total Violations', [lang === 'ar' ? 'العدد' : 'Count']: ops.violations.length },
+        { [lang === 'ar' ? 'البيان' : 'Item']: lang === 'ar' ? 'خصم' : 'Deductions', [lang === 'ar' ? 'العدد' : 'Count']: ops.deductionCount },
+        { [lang === 'ar' ? 'البيان' : 'Item']: lang === 'ar' ? 'إنذار' : 'Warnings', [lang === 'ar' ? 'العدد' : 'Count']: ops.warningCount }
+      ];
+      const deepCleaningRows = [
+        { [lang === 'ar' ? 'البيان' : 'Item']: lang === 'ar' ? 'عدد البنود' : 'Number of Elements', [lang === 'ar' ? 'القيمة' : 'Value']: ops.deepCleaningItemCount },
+        { [lang === 'ar' ? 'البيان' : 'Item']: lang === 'ar' ? 'نسبة الإنجاز' : 'Completion Rate', [lang === 'ar' ? 'القيمة' : 'Value']: `${ops.deepCleaningCompletionPercent}%` }
+      ];
+      const trainingRows = [
+        ...ops.trainingPlanDone.map((i) => ({ [lang === 'ar' ? 'البند' : 'Element']: i.topic, [lang === 'ar' ? 'الحالة' : 'Status']: lang === 'ar' ? 'تم' : 'Done' })),
+        ...ops.trainingPlanPending.map((i) => ({ [lang === 'ar' ? 'البند' : 'Element']: i.topic, [lang === 'ar' ? 'الحالة' : 'Status']: lang === 'ar' ? 'لم يتم' : 'Not Done' })),
+        ...ops.unplannedRecords.map((r) => ({ [lang === 'ar' ? 'البند' : 'Element']: `${r.programName} (${lang === 'ar' ? 'غير مخطط' : 'unplanned'})`, [lang === 'ar' ? 'الحالة' : 'Status']: `${r.date} — ${r.traineeCount} ${lang === 'ar' ? 'متدرب' : 'trainees'}` }))
+      ];
 
       await ReportRepo.save({
         id: generateId(),
         type,
         title: reportTitle(type),
         createdAt: new Date().toISOString(),
-        payload: { executiveSummary: execRows, receiving: receivingRows, healthCertificates: certRows, nonConforming: ncRows }
+        payload: {
+          executiveSummary: execRows,
+          receiving: receivingRows,
+          healthCertificates: certRows,
+          nonConforming: ncRows,
+          maintenanceVisits: maintenanceVisitRows,
+          maintenanceRequests: maintenanceRequestRows,
+          pestControl: pestControlRows,
+          shiftNotes: shiftNoteRows,
+          personalHygiene: hygieneRows,
+          deepCleaning: deepCleaningRows,
+          training: trainingRows
+        }
       });
 
       exportSectionsToCsv(`report-${type}`, [
         { title: lang === 'ar' ? 'الملخص التنفيذي' : 'Executive Summary', rows: execRows },
         { title: lang === 'ar' ? `ملخص الاستلام الشهري – ${monthLabel(setupDate)}` : `Monthly Receiving Summary – ${monthLabel(setupDate)}`, rows: receivingRows },
         { title: lang === 'ar' ? 'الشهادات الصحية' : 'Health Certificates', rows: certRows },
-        { title: lang === 'ar' ? `منتجات غير مطابقة – ${monthLabel(setupDate)}` : `Non-Conforming Products – ${monthLabel(setupDate)}`, rows: ncRows }
+        { title: lang === 'ar' ? `منتجات غير مطابقة – ${monthLabel(setupDate)}` : `Non-Conforming Products – ${monthLabel(setupDate)}`, rows: ncRows },
+        { title: lang === 'ar' ? 'زيارات الصيانة خلال الفترة' : 'Maintenance Visits During the Period', rows: maintenanceVisitRows },
+        { title: lang === 'ar' ? 'صيانات معلقة حاليًا' : 'Currently Pending Maintenance', rows: maintenanceRequestRows },
+        { title: lang === 'ar' ? 'المكافحة خلال الفترة' : 'Pest Control During the Period', rows: pestControlRows },
+        { title: lang === 'ar' ? 'ملاحظات الشفت' : 'Shift Notes', rows: shiftNoteRows },
+        { title: lang === 'ar' ? 'النظافة الشخصية' : 'Personal Hygiene', rows: hygieneRows },
+        { title: lang === 'ar' ? 'النظافة العميقة' : 'Deep Cleaning', rows: deepCleaningRows },
+        { title: lang === 'ar' ? 'التدريب' : 'Training', rows: trainingRows }
       ]);
       return;
     }
@@ -375,6 +524,31 @@ export default function Reports() {
       return;
     }
 
+    if (type === 'hygiene_violations') {
+      const from = setupDate;
+      const to = setupEndDate >= setupDate ? setupEndDate : setupDate;
+      const employeeById = new Map(employees.map((e) => [e.id, e]));
+      const rows = hygieneViolations
+        .filter((v) => v.siteName === setupSite && v.date >= from && v.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((v) => {
+          const emp = employeeById.get(v.employeeId);
+          return {
+            [lang === 'ar' ? 'التاريخ' : 'Date']: v.date,
+            [lang === 'ar' ? 'اسم الموظف' : 'Employee Name']: emp?.name ?? '—',
+            [lang === 'ar' ? 'كود الموظف' : 'Employee Code']: emp?.code ?? '—',
+            [lang === 'ar' ? 'المخالفة' : 'Violation']: v.violation,
+            [lang === 'ar' ? 'الإجراء التصحيحي/الوقائي' : 'Corrective/Preventive Action']: v.correctiveAction,
+            [lang === 'ar' ? 'الحالة' : 'Status']: v.status === 'deduction' ? (lang === 'ar' ? 'خصم' : 'Deduction') : lang === 'ar' ? 'إنذار' : 'Warning',
+            [lang === 'ar' ? 'المشرف المباشر' : 'Direct Supervisor']: v.directSupervisorName,
+            [lang === 'ar' ? 'القائم بالتفتيش' : 'Inspector']: v.inspectorName
+          };
+        });
+      await ReportRepo.save({ id: generateId(), type, title: reportTitle(type), createdAt: new Date().toISOString(), payload: rows });
+      exportToCsv(`report-${type}`, rows);
+      return;
+    }
+
     const list = filteredForReport(type);
     await ReportRepo.save({
       id: generateId(),
@@ -410,6 +584,7 @@ export default function Reports() {
     const receivingRows = receivingCategorySummary(setupDate);
     const certRows = certificatesNeedingAttention();
     const ncRows = nonConformingForMonth(setupDate);
+    const ops = operationalReportData();
 
     return (
       <div>
@@ -589,6 +764,136 @@ export default function Reports() {
                   </div>
                 ))}
               </div>
+            </>
+          )}
+
+          {/* Sections 5-10: new operational sections, only shown when a site is selected since they're all tracked per site */}
+          {setupSite && (
+            <>
+              <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)', margin: '20px 0 4px' }}>
+                {lang === 'ar' ? `الفترة: ${ops.from} إلى ${ops.to}` : `Period: ${ops.from} to ${ops.to}`}
+              </div>
+
+              {/* Section 5 — Maintenance */}
+              <h3 className="report-section-title" style={{ marginTop: 10 }}>
+                {lang === 'ar' ? '٥. الصيانة' : '5. Maintenance'}
+              </h3>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                {lang === 'ar' ? `عدد زيارات الصيانة خلال الفترة: ${ops.visits.length}` : `Maintenance visits during the period: ${ops.visits.length}`}
+              </div>
+              {ops.visits.length > 0 && (
+                <div className="desktop-only-table" style={{ marginBottom: 14 }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                        <th>{lang === 'ar' ? 'الفني' : 'Technician'}</th>
+                        <th>{lang === 'ar' ? 'المشرف' : 'Supervisor'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ops.visits.map((v) => (
+                        <tr key={v.id}>
+                          <td>{v.visitDate}</td>
+                          <td>{v.technicianName}</td>
+                          <td>{v.supervisorName}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 6 }}>
+                {lang === 'ar' ? 'صيانات معلقة حاليًا' : 'Currently Pending Maintenance'} ({ops.pendingRequests.length})
+              </div>
+              {ops.pendingRequests.length === 0 ? (
+                <div className="empty-state">{lang === 'ar' ? 'لا يوجد' : 'None'}</div>
+              ) : (
+                <ul style={{ margin: 0, paddingInlineStart: 20, fontSize: '0.85rem' }}>
+                  {ops.pendingRequests.map((r) => (
+                    <li key={r.id}>{r.description}</li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Section 6 — Pest Control */}
+              <h3 className="report-section-title" style={{ marginTop: 26 }}>
+                {lang === 'ar' ? '٦. المكافحة' : '6. Pest Control'}
+              </h3>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                {lang === 'ar' ? `عدد زيارات المكافحة خلال الفترة: ${ops.pestVisits.length}` : `Pest control visits during the period: ${ops.pestVisits.length}`}
+              </div>
+              {ops.pestVisits.length === 0 ? (
+                <div className="empty-state">{lang === 'ar' ? 'لا يوجد' : 'None'}</div>
+              ) : (
+                <ul style={{ margin: 0, paddingInlineStart: 20, fontSize: '0.85rem' }}>
+                  {ops.pestVisits.map((v) => (
+                    <li key={v.id}>
+                      {v.visitDate} — {v.companyName}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Section 7 — Shift Notes */}
+              <h3 className="report-section-title" style={{ marginTop: 26 }}>
+                {lang === 'ar' ? '٧. ملاحظات الشفت' : '7. Shift Notes'}
+              </h3>
+              {ops.shiftNotesInRange.length === 0 ? (
+                <div className="empty-state">{lang === 'ar' ? 'لا يوجد' : 'None'}</div>
+              ) : (
+                <ul style={{ margin: 0, paddingInlineStart: 20, fontSize: '0.85rem' }}>
+                  {ops.shiftNotesInRange.map((n) => (
+                    <li key={n.id}>
+                      {n.date} — {n.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Section 8 — Personal Hygiene */}
+              <h3 className="report-section-title" style={{ marginTop: 26 }}>
+                {lang === 'ar' ? '٨. النظافة الشخصية' : '8. Personal Hygiene'}
+              </h3>
+              <div style={{ fontSize: '0.85rem' }}>
+                {lang === 'ar'
+                  ? `عدد المخالفات: ${ops.violations.length} (خصم: ${ops.deductionCount} — إنذار: ${ops.warningCount})`
+                  : `Violations: ${ops.violations.length} (Deductions: ${ops.deductionCount} — Warnings: ${ops.warningCount})`}
+              </div>
+
+              {/* Section 9 — Deep Cleaning */}
+              <h3 className="report-section-title" style={{ marginTop: 26 }}>
+                {lang === 'ar' ? '٩. النظافة العميقة' : '9. Deep Cleaning'}
+              </h3>
+              <div style={{ fontSize: '0.85rem' }}>
+                {lang === 'ar'
+                  ? `عدد البنود: ${ops.deepCleaningItemCount} — نسبة الإنجاز خلال الفترة: ${ops.deepCleaningCompletionPercent}%`
+                  : `Number of elements: ${ops.deepCleaningItemCount} — Completion rate during the period: ${ops.deepCleaningCompletionPercent}%`}
+              </div>
+
+              {/* Section 10 — Training */}
+              <h3 className="report-section-title" style={{ marginTop: 26 }}>
+                {lang === 'ar' ? '١٠. التدريب' : '10. Training'}
+              </h3>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                {lang === 'ar'
+                  ? `تنفيذ الخطة: تم ${ops.trainingPlanDone.length} — لم يتم ${ops.trainingPlanPending.length} — عدد المتدربين إجمالًا خلال الفترة: ${ops.totalTrainees}`
+                  : `Plan execution: Done ${ops.trainingPlanDone.length} — Not Done ${ops.trainingPlanPending.length} — Total trainees during the period: ${ops.totalTrainees}`}
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 6 }}>
+                {lang === 'ar' ? 'تدريبات غير مخططة تم تنفيذها' : 'Unplanned Trainings Delivered'} ({ops.unplannedRecords.length})
+              </div>
+              {ops.unplannedRecords.length === 0 ? (
+                <div className="empty-state">{lang === 'ar' ? 'لا يوجد' : 'None'}</div>
+              ) : (
+                <ul style={{ margin: 0, paddingInlineStart: 20, fontSize: '0.85rem' }}>
+                  {ops.unplannedRecords.map((r) => (
+                    <li key={r.id}>
+                      {r.date} — {r.programName} ({lang === 'ar' ? 'عدد المتدربين' : 'trainees'}: {r.traineeCount}, {lang === 'ar' ? 'القائم بالتدريب' : 'trainer'}: {r.trainerName})
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
 
@@ -992,6 +1297,113 @@ export default function Reports() {
     );
   }
 
+  if (activeReport === 'hygiene_violations') {
+    const from = setupDate;
+    const to = setupEndDate >= setupDate ? setupEndDate : setupDate;
+    const employeeById = new Map(employees.map((e) => [e.id, e]));
+    const rows = hygieneViolations
+      .filter((v) => v.siteName === setupSite && v.date >= from && v.date <= to)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const warningCount = rows.filter((v) => v.status === 'warning').length;
+    const deductionCount = rows.filter((v) => v.status === 'deduction').length;
+
+    return (
+      <div>
+        <div className="toolbar no-print">
+          <button className="btn btn-outline" onClick={() => setActiveReport(null)}>
+            {lang === 'ar' ? 'رجوع' : 'Back'}
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline" onClick={() => saveAndExport(activeReport)}>
+              {t('exportExcel')}
+            </button>
+            <button className="btn btn-primary" onClick={() => window.print()}>
+              🖨️ {t('print')}
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {settings.companyLogo && <img src={settings.companyLogo} alt="logo" style={{ height: 50 }} />}
+              <div>
+                <div style={{ fontWeight: 800 }}>{settings.companyName || 'Company Name'}</div>
+                {setupSite && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
+                    {lang === 'ar' ? 'الموقع' : 'Site'}: {setupSite}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: 'end' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{reportTitle(activeReport)}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)' }}>
+                {lang === 'ar' ? `الفترة: ${from} إلى ${to}` : `Period: ${from} to ${to}`}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: '0.85rem', marginBottom: 12 }}>
+            {lang === 'ar'
+              ? `إجمالي المخالفات: ${rows.length} (خصم: ${deductionCount} — إنذار: ${warningCount})`
+              : `Total violations: ${rows.length} (Deductions: ${deductionCount} — Warnings: ${warningCount})`}
+          </div>
+
+          <div className="desktop-only-table">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                  <th>{lang === 'ar' ? 'اسم الموظف' : 'Employee'}</th>
+                  <th>{lang === 'ar' ? 'الكود' : 'Code'}</th>
+                  <th>{lang === 'ar' ? 'المخالفة' : 'Violation'}</th>
+                  <th>{lang === 'ar' ? 'الإجراء' : 'Action'}</th>
+                  <th>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                  <th>{lang === 'ar' ? 'المشرف المباشر' : 'Direct Supervisor'}</th>
+                  <th>{lang === 'ar' ? 'القائم بالتفتيش' : 'Inspector'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8}>{t('noData')}</td>
+                  </tr>
+                ) : (
+                  rows.map((v) => {
+                    const emp = employeeById.get(v.employeeId);
+                    return (
+                      <tr key={v.id}>
+                        <td>{v.date}</td>
+                        <td>{emp?.name ?? '—'}</td>
+                        <td>{emp?.code ?? '—'}</td>
+                        <td>{v.violation}</td>
+                        <td>{v.correctiveAction}</td>
+                        <td>{v.status === 'deduction' ? (lang === 'ar' ? 'خصم' : 'Deduction') : lang === 'ar' ? 'إنذار' : 'Warning'}</td>
+                        <td>{v.directSupervisorName}</td>
+                        <td>{v.inspectorName}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 50, flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div>{t('doctorName')}: {setupDoctor || settings.doctorName || '—'}</div>
+              <div>{t('doctorCode')}: {settings.doctorCode || '—'}</div>
+              <div style={{ borderTop: '1px solid var(--outline)', width: 200, marginTop: 30, paddingTop: 6 }}>
+                {lang === 'ar' ? 'التوقيع' : 'Signature'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (activeReport) {
     const list = filteredForReport(activeReport);
     return (
@@ -1120,10 +1532,10 @@ export default function Reports() {
           </div>
         ))}
       </div>
-      {REPORT_TYPES.find((r) => r.type === 'by_category') && (
+      {REPORT_TYPES.find((r) => r.type === 'expiry_followup') && (
         <div className="card" style={{ maxWidth: 320, marginTop: 10 }}>
           <div className="form-field">
-            <label>{lang === 'ar' ? 'فلترة "حسب الفئة" على' : '"By Category" filters to'}</label>
+            <label>{lang === 'ar' ? 'فلترة "متابعة الصلاحية" على' : '"Expiry Follow-up" filters to'}</label>
             <Autocomplete
               value={categoryFilter}
               onChange={setCategoryFilter}
@@ -1153,9 +1565,15 @@ export default function Reports() {
               <input value={setupDoctor} onChange={(e) => setSetupDoctor(e.target.value)} />
             </div>
             <div className="form-field">
-              <label>{lang === 'ar' ? 'تاريخ التقرير' : 'Report Date'}</label>
+              <label>{pendingType === 'full' || pendingType === 'hygiene_violations' ? (lang === 'ar' ? 'من تاريخ' : 'From Date') : lang === 'ar' ? 'تاريخ التقرير' : 'Report Date'}</label>
               <DateInput value={setupDate} onChange={setSetupDate} />
             </div>
+            {(pendingType === 'full' || pendingType === 'hygiene_violations') && (
+              <div className="form-field">
+                <label>{lang === 'ar' ? 'إلى تاريخ' : 'To Date'}</label>
+                <DateInput value={setupEndDate} onChange={setSetupEndDate} />
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
             <button className="btn btn-outline" onClick={() => setShowSetupDialog(false)}>

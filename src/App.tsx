@@ -13,6 +13,11 @@ import ReceivingRegister from './pages/ReceivingRegister';
 import NonConforming from './pages/NonConforming';
 import HealthCertificates from './pages/HealthCertificates';
 import Maintenance from './pages/Maintenance';
+import ShiftNotes from './pages/ShiftNotes';
+import PestControl from './pages/PestControl';
+import Training from './pages/Training';
+import PersonalHygiene from './pages/PersonalHygiene';
+import DeepCleaning from './pages/DeepCleaning';
 import Search from './pages/Search';
 import Reports from './pages/Reports';
 import ReportsArchive from './pages/ReportsArchive';
@@ -40,6 +45,16 @@ function RouteSwitch() {
       return <HealthCertificates />;
     case 'maintenance':
       return <Maintenance />;
+    case 'shiftNotes':
+      return <ShiftNotes />;
+    case 'pestControl':
+      return <PestControl />;
+    case 'training':
+      return <Training />;
+    case 'personalHygiene':
+      return <PersonalHygiene />;
+    case 'deepCleaning':
+      return <DeepCleaning />;
     case 'search':
       return <Search />;
     case 'reports':

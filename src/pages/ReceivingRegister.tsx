@@ -136,6 +136,7 @@ export default function ReceivingRegister() {
         await BatchRepo.save({
           id: generateId(),
           productId: row.productId,
+          siteName,
           productionDate: row.productionDate,
           shelfLifeValue: row.shelfLifeValue,
           shelfLifeUnit: row.shelfLifeUnit,

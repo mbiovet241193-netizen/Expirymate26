@@ -26,6 +26,7 @@ export interface Batch {
   id: string;
   productId: string;
   batchCode?: string;
+  siteName?: string; // optional for backward compatibility with batches created before site tracking existed
   productionDate: string; // ISO date
   shelfLifeValue: number;
   shelfLifeUnit: ShelfLifeUnit;
@@ -88,18 +89,13 @@ export interface ReceivingSession {
 
 export type ReportType =
   | 'full'
-  | 'expired'
-  | 'near_expiry'
-  | 'expiring_soon'
-  | 'before_half'
-  | 'after_half'
-  | 'by_category'
   | 'expiry_followup'
   | 'maintenance'
   | 'receiving'
   | 'non_conforming'
   | 'monthly_receiving'
-  | 'health_certificates';
+  | 'health_certificates'
+  | 'hygiene_violations';
 
 export interface SavedReport {
   id: string;
@@ -192,6 +188,7 @@ export interface MaintenanceVisit {
   id: string;
   siteName: string;
   visitDate: string; // ISO date
+  companyName?: string; // شركة الصيانة، من قائمة الموردين
   technicianName: string;
   supervisorName: string;
   notes?: string;
@@ -210,5 +207,89 @@ export interface MaintenanceRequest {
   closedDate?: string;
   closedByName?: string; // من أغلق الطلب
   visitId?: string; // the visit during which it was closed, if any
+  createdAt: string;
+}
+
+// Shift Notes module: free-form daily notes logged per site, as discrete items.
+export interface ShiftNote {
+  id: string;
+  siteName: string;
+  date: string; // ISO date
+  text: string;
+  createdAt: string;
+}
+
+// Pest Control module: logged site visits by an external pest-control company.
+export interface PestControlVisit {
+  id: string;
+  siteName: string;
+  visitDate: string;
+  companyName: string; // من قائمة الموردين
+  performedByName: string; // القائم بأعمال المكافحة
+  followUpByName: string; // المسؤول بالمتابعة
+  reportImageDataUrl?: string; // صورة المحضر
+  notes?: string;
+  createdAt: string;
+}
+
+// Training module: annual plan (same shape as the maintenance plan, plus a target audience),
+// and actual training records (planned against the plan, or unplanned/ad-hoc).
+export interface TrainingPlanItem {
+  id: string;
+  siteName: string;
+  year: number;
+  month: number; // 1-12
+  topic: string; // موضوع/بند التدريب
+  targetAudience: string; // الفئة المستهدفة
+  done: boolean;
+  doneDate?: string;
+  recordId?: string; // the TrainingRecord that fulfilled this plan item, if any
+  createdAt: string;
+}
+
+export interface TrainingRecord {
+  id: string;
+  siteName: string;
+  date: string;
+  planItemId?: string; // set when this fulfills a planned item; undefined = unplanned/ad-hoc
+  programName: string;
+  traineeCount: number;
+  trainerName: string; // القائم بالتدريب
+  imageDataUrl?: string; // صورة سجل التدريب
+  notes?: string;
+  createdAt: string;
+}
+
+// Personal Hygiene module: daily walk-through violations logged per site.
+export interface HygieneViolation {
+  id: string;
+  siteName: string;
+  date: string;
+  employeeId: string; // من قائمة إدارة الموظفين
+  violation: string;
+  correctiveAction: string;
+  status: 'warning' | 'deduction'; // إنذار أو خصم
+  directSupervisorName: string;
+  inspectorName: string;
+  createdAt: string;
+}
+
+// Deep Cleaning module: a weekly plan (items tagged with the weekdays they apply to,
+// so one item can repeat across several days), plus daily execution follow-up.
+export interface DeepCleaningPlanItem {
+  id: string;
+  siteName: string;
+  elementName: string;
+  daysOfWeek: number[]; // 0=Sunday .. 6=Saturday; the weekdays this item is scheduled on
+  createdAt: string;
+}
+
+export interface DeepCleaningExecution {
+  id: string;
+  siteName: string;
+  date: string; // ISO date - the day this execution belongs to
+  planItemId?: string; // set when fulfilling a scheduled plan item (even on an unplanned day)
+  elementName: string; // denormalized: copied from the plan item, or typed fresh for an ad-hoc item
+  performedByName: string;
   createdAt: string;
 }

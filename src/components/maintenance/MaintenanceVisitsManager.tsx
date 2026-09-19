@@ -5,15 +5,17 @@ import { generateId } from '../../db/db';
 import type { MaintenancePlanItem, MaintenanceRequest, MaintenanceVisit } from '../../types';
 import Modal from '../common/Modal';
 import DateInput from '../common/DateInput';
+import Autocomplete from '../common/Autocomplete';
 
 export default function MaintenanceVisitsManager({ siteName, onBack }: { siteName: string; onBack: () => void }) {
-  const { lang } = useApp();
+  const { lang, settings } = useApp();
   const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
   const [planItems, setPlanItems] = useState<MaintenancePlanItem[]>([]);
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [visitDate, setVisitDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [companyName, setCompanyName] = useState('');
   const [technicianName, setTechnicianName] = useState('');
   const [supervisorName, setSupervisorName] = useState('');
   const [notes, setNotes] = useState('');
@@ -55,6 +57,7 @@ export default function MaintenanceVisitsManager({ siteName, onBack }: { siteNam
 
   const openAdd = () => {
     setVisitDate(new Date().toISOString().slice(0, 10));
+    setCompanyName(settings.supplierList[0] ?? '');
     setTechnicianName('');
     setSupervisorName('');
     setNotes('');
@@ -70,6 +73,7 @@ export default function MaintenanceVisitsManager({ siteName, onBack }: { siteNam
       id: visitId,
       siteName,
       visitDate,
+      companyName: companyName.trim() || undefined,
       technicianName: technicianName.trim(),
       supervisorName: supervisorName.trim(),
       notes: notes.trim() || undefined,
@@ -125,6 +129,10 @@ export default function MaintenanceVisitsManager({ siteName, onBack }: { siteNam
               </button>
             </div>
             <div className="record-card-row">
+              <span>{lang === 'ar' ? 'شركة الصيانة' : 'Company'}</span>
+              <span>{v.companyName || '—'}</span>
+            </div>
+            <div className="record-card-row">
               <span>{lang === 'ar' ? 'الفني' : 'Technician'}</span>
               <span>{v.technicianName}</span>
             </div>
@@ -152,6 +160,15 @@ export default function MaintenanceVisitsManager({ siteName, onBack }: { siteNam
             <div className="form-field">
               <label>{lang === 'ar' ? 'تاريخ الزيارة' : 'Visit Date'}</label>
               <DateInput value={visitDate} onChange={setVisitDate} />
+            </div>
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'شركة الصيانة' : 'Maintenance Company'}</label>
+              <Autocomplete
+                value={companyName}
+                onChange={setCompanyName}
+                options={settings.supplierList.map((n) => ({ value: n, label: n }))}
+                placeholder={lang === 'ar' ? 'اختر من الموردين' : 'Select from suppliers'}
+              />
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'اسم الفني' : 'Technician Name'}</label>

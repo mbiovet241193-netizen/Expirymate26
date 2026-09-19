@@ -17,7 +17,7 @@ import DateInput from '../components/common/DateInput';
 const ALL_STATUSES: ProductStatus[] = ['expired', 'near_expiry', 'expiring_soon', 'before_half', 'after_half'];
 
 export default function ProductBatches() {
-  const { t, lang } = useApp();
+  const { t, lang, settings } = useApp();
   const { params } = useRouter();
   const productIdFilter = params.productId;
 
@@ -28,10 +28,12 @@ export default function ProductBatches() {
   const [editing, setEditing] = useState<Batch | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [siteFilter, setSiteFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductStatus | ''>((params.status as ProductStatus) ?? '');
 
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [siteName, setSiteName] = useState('');
   const [productionDate, setProductionDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const load = async () => {
@@ -59,6 +61,9 @@ export default function ProductBatches() {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((b) => productName(b.productId).toLowerCase().includes(q));
     }
+    if (siteFilter) {
+      list = list.filter((b) => b.siteName === siteFilter);
+    }
     if (categoryFilter) {
       list = list.filter((b) => productById.get(b.productId)?.categoryId === categoryFilter);
     }
@@ -71,12 +76,13 @@ export default function ProductBatches() {
     // FEFO: First Expired First Out -> sort ascending by expiry date (default, always on)
     return [...list].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batches, productIdFilter, searchQuery, categoryFilter, statusFilter, productById]);
+  }, [batches, productIdFilter, searchQuery, siteFilter, categoryFilter, statusFilter, productById]);
 
   const openAdd = () => {
     setEditing(null);
     const defaultProductId = productIdFilter ?? products[0]?.id ?? '';
     setSelectedProductId(defaultProductId);
+    setSiteName(siteFilter || settings.siteNames[0] || '');
     setProductionDate(new Date().toISOString().slice(0, 10));
     setShowModal(true);
   };
@@ -84,6 +90,7 @@ export default function ProductBatches() {
   const openEdit = (b: Batch) => {
     setEditing(b);
     setSelectedProductId(b.productId);
+    setSiteName(b.siteName ?? '');
     setProductionDate(b.productionDate);
     setShowModal(true);
   };
@@ -98,10 +105,11 @@ export default function ProductBatches() {
     const { expiryDate, halfLifeDate } = calculateExpiry({ productionDate, shelfLifeValue, shelfLifeUnit });
 
     const batch: Batch = editing
-      ? { ...editing, productId: selectedProductId, productionDate, shelfLifeValue, shelfLifeUnit, expiryDate, halfLifeDate }
+      ? { ...editing, productId: selectedProductId, siteName: siteName || undefined, productionDate, shelfLifeValue, shelfLifeUnit, expiryDate, halfLifeDate }
       : {
           id: generateId(),
           productId: selectedProductId,
+          siteName: siteName || undefined,
           productionDate,
           shelfLifeValue,
           shelfLifeUnit,
@@ -117,6 +125,24 @@ export default function ProductBatches() {
   const remove = async (b: Batch) => {
     if (!confirm(lang === 'ar' ? 'هل تريد حذف هذا السجل؟' : 'Delete this record?')) return;
     await BatchRepo.remove(b.id);
+    load();
+  };
+
+  const clearAllBatches = async () => {
+    const warning =
+      lang === 'ar'
+        ? `سيتم حذف كل سجلات متابعة الصلاحية نهائيًا (${batches.length} سجل) ولا يمكن التراجع عن هذا الإجراء. هل أنت متأكد؟`
+        : `This will permanently delete ALL Expiry Follow-up records (${batches.length}) and cannot be undone. Are you sure?`;
+    if (!confirm(warning)) return;
+    if (
+      !confirm(
+        lang === 'ar'
+          ? 'تأكيد أخير: سيتم مسح كل البيانات بشكل نهائي. اضغط موافق للمتابعة.'
+          : 'Final confirmation: all data will be permanently erased. Press OK to proceed.'
+      )
+    )
+      return;
+    await BatchRepo.clearAll();
     load();
   };
 
@@ -142,14 +168,29 @@ export default function ProductBatches() {
             ? 'متابعة الصلاحية (مرتبة حسب FEFO)'
             : 'Expiry Follow-up (sorted by FEFO)'}
         </div>
-        <button className="btn btn-primary" onClick={openAdd} disabled={products.length === 0}>
-          + {lang === 'ar' ? 'إضافة سجل' : 'Add Record'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-danger" onClick={clearAllBatches} disabled={batches.length === 0}>
+            🗑️ {lang === 'ar' ? 'مسح الكل' : 'Clear All'}
+          </button>
+          <button className="btn btn-primary" onClick={openAdd} disabled={products.length === 0}>
+            + {lang === 'ar' ? 'إضافة سجل' : 'Add Record'}
+          </button>
+        </div>
       </div>
 
       {!productIdFilter && (
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="form-grid">
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
+              <Autocomplete
+                value={siteFilter}
+                onChange={setSiteFilter}
+                allowEmptyOption={{ value: '', label: lang === 'ar' ? 'كل المواقع' : 'All Sites' }}
+                options={settings.siteNames.map((n) => ({ value: n, label: n }))}
+                placeholder={lang === 'ar' ? 'كل المواقع' : 'All Sites'}
+              />
+            </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'بحث' : 'Search'}</label>
               <input
@@ -195,6 +236,7 @@ export default function ProductBatches() {
               <thead>
                 <tr>
                   {!productIdFilter && <th>{t('products')}</th>}
+                  {!siteFilter && <th>{lang === 'ar' ? 'الموقع' : 'Site'}</th>}
                   <th>{t('productionDate')}</th>
                   <th>{t('expiryDate')}</th>
                   <th>{t('halfLifeDate')}</th>
@@ -216,6 +258,7 @@ export default function ProductBatches() {
                   return (
                     <tr key={b.id}>
                       {!productIdFilter && <td>{productName(b.productId)}</td>}
+                      {!siteFilter && <td>{b.siteName || (lang === 'ar' ? '— غير محدد —' : '— Unassigned —')}</td>}
                       <td>{b.productionDate}</td>
                       <td>{b.expiryDate}</td>
                       <td>{b.halfLifeDate}</td>
@@ -259,6 +302,12 @@ export default function ProductBatches() {
                     <span>{t('productionDate')}</span>
                     <span>{b.productionDate}</span>
                   </div>
+                  {!siteFilter && (
+                    <div className="expiry-card-row">
+                      <span>{lang === 'ar' ? 'الموقع' : 'Site'}</span>
+                      <span>{b.siteName || (lang === 'ar' ? '— غير محدد —' : '— Unassigned —')}</span>
+                    </div>
+                  )}
                   <div className="expiry-card-row">
                     <span>{t('expiryDate')}</span>
                     <span>{b.expiryDate}</span>
@@ -301,6 +350,16 @@ export default function ProductBatches() {
                 />
               </div>
             )}
+            <div className="form-field">
+              <label>{lang === 'ar' ? 'الموقع' : 'Site'}</label>
+              <Autocomplete
+                value={siteName}
+                onChange={setSiteName}
+                allowEmptyOption={{ value: '', label: lang === 'ar' ? '— بدون تحديد —' : '— Unassigned —' }}
+                options={settings.siteNames.map((n) => ({ value: n, label: n }))}
+                placeholder={lang === 'ar' ? 'اختر الموقع' : 'Select site'}
+              />
+            </div>
             <div className="form-field">
               <label>{t('productionDate')}</label>
               <DateInput value={productionDate} onChange={setProductionDate} />
