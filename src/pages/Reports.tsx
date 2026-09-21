@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo, MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo, ShiftNoteRepo, PestControlRepo, TrainingPlanRepo, TrainingRecordRepo, HygieneViolationRepo, DeepCleaningPlanRepo, DeepCleaningExecutionRepo } from '../db/repositories';
+import { BatchRepo, CategoryRepo, ProductRepo, ReportRepo, ReceivingRepo, NonConformingRepo, EmployeeRepo, HealthCertificateRepo, MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo, ShiftNoteRepo, PestControlRepo, TrainingPlanRepo, TrainingRecordRepo, HygieneViolationRepo, DeepCleaningPlanRepo, DeepCleaningExecutionRepo, DocumentReminderRepo, ActivityLogRepo } from '../db/repositories';
+import { computeDocumentStatus } from '../engine/documentEngine';
 import { generateId } from '../db/db';
 import type {
   Batch,
@@ -20,7 +21,8 @@ import type {
   TrainingRecord,
   HygieneViolation,
   DeepCleaningPlanItem,
-  DeepCleaningExecution
+  DeepCleaningExecution,
+  DocumentReminder
 } from '../types';
 import DateInput from '../components/common/DateInput';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
@@ -62,6 +64,7 @@ export default function Reports() {
   const [hygieneViolations, setHygieneViolations] = useState<HygieneViolation[]>([]);
   const [deepCleaningPlanItems, setDeepCleaningPlanItems] = useState<DeepCleaningPlanItem[]>([]);
   const [deepCleaningExecutions, setDeepCleaningExecutions] = useState<DeepCleaningExecution[]>([]);
+  const [documents, setDocuments] = useState<DocumentReminder[]>([]);
   const [execStats, setExecStats] = useState<DashboardStats | null>(null);
   const [activeReport, setActiveReport] = useState<ReportType | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -92,6 +95,7 @@ export default function Reports() {
       setHygieneViolations(await HygieneViolationRepo.all());
       setDeepCleaningPlanItems(await DeepCleaningPlanRepo.all());
       setDeepCleaningExecutions(await DeepCleaningExecutionRepo.all());
+      setDocuments(await DocumentReminderRepo.all());
       setExecStats(await computeDashboardStats());
     })();
   }, []);
@@ -342,6 +346,7 @@ export default function Reports() {
   };
 
   const saveAndExport = async (type: ReportType) => {
+    await ActivityLogRepo.log('reportGenerated', reportTitle(type));
     if (type === 'full') {
       const execRows = execStats
         ? executiveSummaryIndicators(execStats).map((i) => ({
@@ -365,6 +370,18 @@ export default function Reports() {
         [lang === 'ar' ? 'القرار' : 'Decision']: r.decision
       }));
       const ops = operationalReportData();
+      const documentRows = documents.map((d) => {
+        const { remainingDays, status } = computeDocumentStatus(d.endDate);
+        const statusLabel =
+          status === 'valid' ? (lang === 'ar' ? 'ساري' : 'Valid') : status === 'near_expiry' ? (lang === 'ar' ? 'قرب الانتهاء' : 'Near Expiry') : lang === 'ar' ? 'منتهي' : 'Expired';
+        return {
+          [lang === 'ar' ? 'اسم المستند' : 'Document Name']: d.documentName,
+          [lang === 'ar' ? 'خاص بـ' : 'Belongs To']: d.belongsTo,
+          [lang === 'ar' ? 'تاريخ النهاية' : 'End Date']: d.endDate,
+          [lang === 'ar' ? 'المدة المتبقية' : 'Remaining Days']: remainingDays,
+          [lang === 'ar' ? 'الحالة' : 'Status']: statusLabel
+        };
+      });
       const maintenanceVisitRows = ops.visits.map((v) => ({
         [lang === 'ar' ? 'التاريخ' : 'Date']: v.visitDate,
         [lang === 'ar' ? 'الفني' : 'Technician']: v.technicianName,
@@ -408,6 +425,7 @@ export default function Reports() {
           receiving: receivingRows,
           healthCertificates: certRows,
           nonConforming: ncRows,
+          documentReminders: documentRows,
           maintenanceVisits: maintenanceVisitRows,
           maintenanceRequests: maintenanceRequestRows,
           pestControl: pestControlRows,
@@ -423,6 +441,7 @@ export default function Reports() {
         { title: lang === 'ar' ? `ملخص الاستلام الشهري – ${monthLabel(setupDate)}` : `Monthly Receiving Summary – ${monthLabel(setupDate)}`, rows: receivingRows },
         { title: lang === 'ar' ? 'الشهادات الصحية' : 'Health Certificates', rows: certRows },
         { title: lang === 'ar' ? `منتجات غير مطابقة – ${monthLabel(setupDate)}` : `Non-Conforming Products – ${monthLabel(setupDate)}`, rows: ncRows },
+        { title: lang === 'ar' ? 'منبه المستندات' : 'Document Reminder', rows: documentRows },
         { title: lang === 'ar' ? 'زيارات الصيانة خلال الفترة' : 'Maintenance Visits During the Period', rows: maintenanceVisitRows },
         { title: lang === 'ar' ? 'صيانات معلقة حاليًا' : 'Currently Pending Maintenance', rows: maintenanceRequestRows },
         { title: lang === 'ar' ? 'المكافحة خلال الفترة' : 'Pest Control During the Period', rows: pestControlRows },
@@ -585,6 +604,14 @@ export default function Reports() {
     const certRows = certificatesNeedingAttention();
     const ncRows = nonConformingForMonth(setupDate);
     const ops = operationalReportData();
+    const documentCounts = documents.reduce(
+      (acc, d) => {
+        const { status } = computeDocumentStatus(d.endDate);
+        acc[status]++;
+        return acc;
+      },
+      { valid: 0, near_expiry: 0, expired: 0 }
+    );
 
     return (
       <div>
@@ -767,7 +794,17 @@ export default function Reports() {
             </>
           )}
 
-          {/* Sections 5-10: new operational sections, only shown when a site is selected since they're all tracked per site */}
+          {/* Section 5 — Document Reminder (not site-scoped, always shown) */}
+          <h3 className="report-section-title" style={{ marginTop: 20 }}>
+            {lang === 'ar' ? '٥. منبه المستندات' : '5. Document Reminder'}
+          </h3>
+          <div style={{ fontSize: '0.85rem', marginBottom: 20 }}>
+            {lang === 'ar'
+              ? `عدد المستندات الساري الجاري متابعتها: ${documentCounts.valid} — أوشكت ويجب تحديثها: ${documentCounts.near_expiry} — منتهية ويجب تحديثها: ${documentCounts.expired}`
+              : `Valid documents being tracked: ${documentCounts.valid} — Near expiry (need updating): ${documentCounts.near_expiry} — Expired (need updating): ${documentCounts.expired}`}
+          </div>
+
+          {/* Sections 6-11: new operational sections, only shown when a site is selected since they're all tracked per site */}
           {setupSite && (
             <>
               <div style={{ fontSize: '0.82rem', color: 'var(--on-surface-variant)', margin: '20px 0 4px' }}>
@@ -776,7 +813,7 @@ export default function Reports() {
 
               {/* Section 5 — Maintenance */}
               <h3 className="report-section-title" style={{ marginTop: 10 }}>
-                {lang === 'ar' ? '٥. الصيانة' : '5. Maintenance'}
+                {lang === 'ar' ? '٦. الصيانة' : '6. Maintenance'}
               </h3>
               <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
                 {lang === 'ar' ? `عدد زيارات الصيانة خلال الفترة: ${ops.visits.length}` : `Maintenance visits during the period: ${ops.visits.length}`}
@@ -818,7 +855,7 @@ export default function Reports() {
 
               {/* Section 6 — Pest Control */}
               <h3 className="report-section-title" style={{ marginTop: 26 }}>
-                {lang === 'ar' ? '٦. المكافحة' : '6. Pest Control'}
+                {lang === 'ar' ? '٧. المكافحة' : '7. Pest Control'}
               </h3>
               <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
                 {lang === 'ar' ? `عدد زيارات المكافحة خلال الفترة: ${ops.pestVisits.length}` : `Pest control visits during the period: ${ops.pestVisits.length}`}
@@ -837,7 +874,7 @@ export default function Reports() {
 
               {/* Section 7 — Shift Notes */}
               <h3 className="report-section-title" style={{ marginTop: 26 }}>
-                {lang === 'ar' ? '٧. ملاحظات الشفت' : '7. Shift Notes'}
+                {lang === 'ar' ? '٨. ملاحظات الشفت' : '8. Shift Notes'}
               </h3>
               {ops.shiftNotesInRange.length === 0 ? (
                 <div className="empty-state">{lang === 'ar' ? 'لا يوجد' : 'None'}</div>
@@ -853,7 +890,7 @@ export default function Reports() {
 
               {/* Section 8 — Personal Hygiene */}
               <h3 className="report-section-title" style={{ marginTop: 26 }}>
-                {lang === 'ar' ? '٨. النظافة الشخصية' : '8. Personal Hygiene'}
+                {lang === 'ar' ? '٩. النظافة الشخصية' : '9. Personal Hygiene'}
               </h3>
               <div style={{ fontSize: '0.85rem' }}>
                 {lang === 'ar'
@@ -863,7 +900,7 @@ export default function Reports() {
 
               {/* Section 9 — Deep Cleaning */}
               <h3 className="report-section-title" style={{ marginTop: 26 }}>
-                {lang === 'ar' ? '٩. النظافة العميقة' : '9. Deep Cleaning'}
+                {lang === 'ar' ? '١٠. النظافة العميقة' : '10. Deep Cleaning'}
               </h3>
               <div style={{ fontSize: '0.85rem' }}>
                 {lang === 'ar'
@@ -873,7 +910,7 @@ export default function Reports() {
 
               {/* Section 10 — Training */}
               <h3 className="report-section-title" style={{ marginTop: 26 }}>
-                {lang === 'ar' ? '١٠. التدريب' : '10. Training'}
+                {lang === 'ar' ? '١١. التدريب' : '11. Training'}
               </h3>
               <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
                 {lang === 'ar'

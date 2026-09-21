@@ -68,7 +68,12 @@ export default function About() {
         <div className="form-grid">
           <div className="form-field">
             <label>{lang === 'ar' ? 'الإصدار الحالي' : 'Current Version'}</label>
-            <div style={{ fontWeight: 700 }}>1.0.0</div>
+            <div style={{ fontWeight: 700 }}>
+              2.0.0
+              <div style={{ fontWeight: 500, fontSize: '0.8rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
+                {lang === 'ar' ? '(كان يُعرف سابقًا باسم ExpiryMate)' : '(formerly known as ExpiryMate)'}
+              </div>
+            </div>
           </div>
           <div className="form-field">
             <label>{lang === 'ar' ? 'آخر تحديث' : 'Last Update'}</label>
@@ -79,6 +84,24 @@ export default function About() {
             <div style={{ fontWeight: 700 }}>Mahmoud S.A Biomy</div>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h2 className="section-title">{lang === 'ar' ? 'ساهم في تطوير التطبيق' : 'Contribute to the App'}</h2>
+        <p style={{ marginBottom: 14 }}>
+          {lang === 'ar'
+            ? 'ندعوك للمساهمة في تطوير التطبيق ومتابعة آخر تحديثاته عبر قناة التيليجرام الرسمية:'
+            : "You're invited to contribute to the app's development and follow its latest updates via the official Telegram channel:"}
+        </p>
+        <a
+          className="btn btn-primary"
+          href="https://t.me/QualityMate2026"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ textDecoration: 'none' }}
+        >
+          ✈️ Telegram
+        </a>
       </div>
 
       <div className="card">

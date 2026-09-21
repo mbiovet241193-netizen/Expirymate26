@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { PestControlRepo } from '../db/repositories';
+import { PestControlRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { PestControlVisit } from '../types';
 import Autocomplete from '../components/common/Autocomplete';
@@ -78,6 +78,7 @@ export default function PestControl() {
           createdAt: new Date().toISOString()
         };
     await PestControlRepo.save(visit);
+    if (!editing) await ActivityLogRepo.log('pestControlVisitLogged', siteFilter);
     setShowModal(false);
     load();
   };

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MaintenancePlanRepo } from '../../db/repositories';
+import { MaintenancePlanRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { MaintenancePlanItem } from '../../types';
 import Modal from '../common/Modal';
@@ -52,6 +52,7 @@ export default function MaintenancePlanManager({ siteName, onBack }: { siteName:
         createdAt: now2
       });
     }
+    await ActivityLogRepo.log('maintenancePlanUpdated', `${siteName} — ${elementName.trim()}`);
     setElementName('');
     setRepeatAllMonths(false);
     setShowAdd(false);

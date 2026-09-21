@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { CategoryRepo, ReceivingRepo, ReportRepo, ProductRepo, BatchRepo } from '../db/repositories';
+import { CategoryRepo, ReceivingRepo, ReportRepo, ProductRepo, BatchRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, Product, ReceivingRow, ReceivingSession, ShelfLifeUnit } from '../types';
 import DateInput from '../components/common/DateInput';
@@ -117,6 +117,7 @@ export default function ReceivingRegister() {
       createdAt: new Date().toISOString()
     };
     await ReceivingRepo.save(session);
+    await ActivityLogRepo.log('receivingLogged', siteName);
     await ReportRepo.save({
       id: generateId(),
       type: 'receiving',

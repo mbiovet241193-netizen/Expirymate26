@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShiftNoteRepo } from '../db/repositories';
+import { ShiftNoteRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { ShiftNote } from '../types';
 import Autocomplete from '../components/common/Autocomplete';
@@ -47,6 +47,7 @@ export default function ShiftNotes() {
       ? { ...editing, date, text: text.trim() }
       : { id: generateId(), siteName: siteFilter, date, text: text.trim(), createdAt: new Date().toISOString() };
     await ShiftNoteRepo.save(note);
+    if (!editing) await ActivityLogRepo.log('shiftNoteAdded', siteFilter);
     setShowModal(false);
     load();
   };

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { TrainingPlanRepo, TrainingRecordRepo } from '../../db/repositories';
+import { TrainingPlanRepo, TrainingRecordRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { TrainingPlanItem, TrainingRecord } from '../../types';
 import Modal from '../common/Modal';
@@ -80,6 +80,7 @@ export default function TrainingRecordsManager({ siteName, onBack }: { siteName:
       const item = planItems.find((i) => i.id === planItemId);
       if (item) await TrainingPlanRepo.save({ ...item, done: true, doneDate: date, recordId });
     }
+    await ActivityLogRepo.log('trainingRecordLogged', `${siteName} — ${programName.trim()}`);
     setShowAdd(false);
     load();
   };

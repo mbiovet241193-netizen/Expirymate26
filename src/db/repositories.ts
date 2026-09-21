@@ -20,7 +20,10 @@ import type {
   TrainingRecord,
   HygieneViolation,
   DeepCleaningPlanItem,
-  DeepCleaningExecution
+  DeepCleaningExecution,
+  DocumentReminder,
+  ActivityLogEntry,
+  ActivityActionKey
 } from '../types';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -32,7 +35,9 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     expiringProducts: false,
     dailyReminder: false,
     expiredCertificates: false,
-    expiringCertificates: false
+    expiringCertificates: false,
+    expiredDocuments: false,
+    expiringDocuments: false
   }
 };
 
@@ -269,6 +274,31 @@ export const DeepCleaningExecutionRepo = {
   all: () => dbGetAll<DeepCleaningExecution>(STORES.deepCleaningExecutions),
   save: (e: DeepCleaningExecution) => dbPut(STORES.deepCleaningExecutions, e),
   remove: (id: string) => dbDelete(STORES.deepCleaningExecutions, id)
+};
+
+// Document Reminder: simple standalone document tracker
+export const DocumentReminderRepo = {
+  all: () => dbGetAll<DocumentReminder>(STORES.documentReminders),
+  save: (d: DocumentReminder) => dbPut(STORES.documentReminders, d),
+  remove: (id: string) => dbDelete(STORES.documentReminders, id)
+};
+
+// Activity Feed: real actions the user performed, for the Dashboard's Activity Feed.
+// Deliberately keeps only the most recent 4 entries in storage (nothing else needs
+// older ones), trimming on every write to stay lightweight.
+export const ActivityLogRepo = {
+  async recent(limit = 4): Promise<ActivityLogEntry[]> {
+    const all = await dbGetAll<ActivityLogEntry>(STORES.activityLog);
+    return all.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
+  },
+  async log(actionKey: ActivityActionKey, detail?: string): Promise<void> {
+    const entry: ActivityLogEntry = { id: generateId(), actionKey, detail, timestamp: new Date().toISOString() };
+    await dbPut(STORES.activityLog, entry);
+    const all = await dbGetAll<ActivityLogEntry>(STORES.activityLog);
+    const sorted = all.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    const stale = sorted.slice(4);
+    for (const e of stale) await dbDelete(STORES.activityLog, e.id);
+  }
 };
 
 // Notification dedup log: one entry per (date + category), so the same

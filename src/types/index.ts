@@ -115,6 +115,8 @@ export interface NotificationSettings {
     dailyReminder: boolean;
     expiredCertificates: boolean;
     expiringCertificates: boolean; // within 30 days
+    expiredDocuments: boolean;
+    expiringDocuments: boolean; // within 30 days
   };
 }
 
@@ -209,6 +211,50 @@ export interface MaintenanceRequest {
   visitId?: string; // the visit during which it was closed, if any
   createdAt: string;
 }
+
+// Activity Feed: a lightweight log of real actions the user performed, for the
+// Dashboard's "Activity Feed". actionKey selects the ar/en verb phrase at display
+// time (so it always renders in the currently selected language); detail is an
+// optional specific bit of context (e.g. a product name) captured as typed.
+export type ActivityActionKey =
+  | 'productAdded'
+  | 'categoryAdded'
+  | 'batchAdded'
+  | 'receivingLogged'
+  | 'nonConformingLogged'
+  | 'certificateLogged'
+  | 'maintenancePlanUpdated'
+  | 'maintenanceVisitLogged'
+  | 'maintenanceRequestLogged'
+  | 'shiftNoteAdded'
+  | 'pestControlVisitLogged'
+  | 'trainingPlanUpdated'
+  | 'trainingRecordLogged'
+  | 'hygieneViolationLogged'
+  | 'deepCleaningPlanUpdated'
+  | 'deepCleaningExecutionLogged'
+  | 'documentAdded'
+  | 'reportGenerated';
+
+export interface ActivityLogEntry {
+  id: string;
+  actionKey: ActivityActionKey;
+  detail?: string;
+  timestamp: string;
+}
+
+// Document Reminder module: simple standalone tracker for any document with an expiry date
+// (licenses, certificates, contracts, etc.) - no site scoping, just a flat list.
+export interface DocumentReminder {
+  id: string;
+  documentName: string; // اسم المستند
+  belongsTo: string; // خاص بمين
+  startDate: string; // ISO date
+  endDate: string; // ISO date
+  createdAt: string;
+}
+
+export type DocumentStatus = 'valid' | 'near_expiry' | 'expired';
 
 // Shift Notes module: free-form daily notes logged per site, as discrete items.
 export interface ShiftNote {

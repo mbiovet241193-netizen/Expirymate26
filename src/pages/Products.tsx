@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { CategoryRepo, ProductRepo, BatchRepo } from '../db/repositories';
+import { CategoryRepo, ProductRepo, BatchRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, Product, ShelfLifeUnit } from '../types';
 import Modal from '../components/common/Modal';
@@ -73,6 +73,7 @@ export default function Products() {
           updatedAt: now
         };
     await ProductRepo.save(product);
+    if (!editing) await ActivityLogRepo.log('productAdded', name);
     setShowModal(false);
     load();
   };

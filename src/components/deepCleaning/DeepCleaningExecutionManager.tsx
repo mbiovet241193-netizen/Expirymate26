@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { DeepCleaningPlanRepo, DeepCleaningExecutionRepo } from '../../db/repositories';
+import { DeepCleaningPlanRepo, DeepCleaningExecutionRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { DeepCleaningExecution, DeepCleaningPlanItem } from '../../types';
 import Modal from '../common/Modal';
@@ -74,6 +74,7 @@ export default function DeepCleaningExecutionManager({ siteName, onBack }: { sit
       performedByName: performedByName.trim(),
       createdAt: new Date().toISOString()
     });
+    await ActivityLogRepo.log('deepCleaningExecutionLogged', `${siteName} — ${elementName}`);
     setShowAdd(false);
     load();
   };

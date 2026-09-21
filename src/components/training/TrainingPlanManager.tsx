@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { TrainingPlanRepo } from '../../db/repositories';
+import { TrainingPlanRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { TrainingPlanItem } from '../../types';
 import Modal from '../common/Modal';
@@ -54,6 +54,7 @@ export default function TrainingPlanManager({ siteName, onBack }: { siteName: st
         createdAt: now2
       });
     }
+    await ActivityLogRepo.log('trainingPlanUpdated', `${siteName} — ${topic.trim()}`);
     setTopic('');
     setTargetAudience('');
     setRepeatAllMonths(false);

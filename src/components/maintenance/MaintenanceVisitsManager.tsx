@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo } from '../../db/repositories';
+import { MaintenancePlanRepo, MaintenanceVisitRepo, MaintenanceRequestRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { MaintenancePlanItem, MaintenanceRequest, MaintenanceVisit } from '../../types';
 import Modal from '../common/Modal';
@@ -87,6 +87,7 @@ export default function MaintenanceVisitsManager({ siteName, onBack }: { siteNam
       if (!selectedRequestIds.has(req.id)) continue;
       await MaintenanceRequestRepo.save({ ...req, status: 'done', closedDate: visitDate, closedByName: technicianName.trim(), visitId });
     }
+    await ActivityLogRepo.log('maintenanceVisitLogged', siteName);
     setShowAdd(false);
     load();
   };

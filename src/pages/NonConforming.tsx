@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { NonConformingRepo, ReportRepo, ProductRepo, CategoryRepo } from '../db/repositories';
+import { NonConformingRepo, ReportRepo, ProductRepo, CategoryRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category, NonConformingDecision, NonConformingRecord, Product } from '../types';
 import DateInput from '../components/common/DateInput';
@@ -98,6 +98,7 @@ export default function NonConforming() {
       ? { ...editing, productName, date, reason, decision, notes }
       : { id: generateId(), productName, date, reason, decision, notes, createdAt: new Date().toISOString() };
     await NonConformingRepo.save(rec);
+    if (!editing) await ActivityLogRepo.log('nonConformingLogged', productName);
     setShowModal(false);
     load();
   };

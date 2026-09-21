@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { EmployeeRepo, HealthCertificateRepo, ReportRepo } from '../db/repositories';
+import { EmployeeRepo, HealthCertificateRepo, ReportRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { CertificateStatus, Employee, HealthCertificate } from '../types';
 import { computeCertificateStatus, CERTIFICATE_STATUS_LABELS } from '../engine/certificateEngine';
@@ -121,6 +121,7 @@ export default function HealthCertificates() {
       };
       await HealthCertificateRepo.save(cert);
     }
+    await ActivityLogRepo.log('certificateLogged', siteFilter);
     setShowModal(false);
     load();
   };

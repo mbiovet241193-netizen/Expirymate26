@@ -18,6 +18,7 @@ import PestControl from './pages/PestControl';
 import Training from './pages/Training';
 import PersonalHygiene from './pages/PersonalHygiene';
 import DeepCleaning from './pages/DeepCleaning';
+import DocumentReminders from './pages/DocumentReminders';
 import Search from './pages/Search';
 import Reports from './pages/Reports';
 import ReportsArchive from './pages/ReportsArchive';
@@ -55,6 +56,8 @@ function RouteSwitch() {
       return <PersonalHygiene />;
     case 'deepCleaning':
       return <DeepCleaning />;
+    case 'documentReminders':
+      return <DocumentReminders />;
     case 'search':
       return <Search />;
     case 'reports':

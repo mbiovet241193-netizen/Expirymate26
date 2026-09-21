@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { HygieneViolationRepo, EmployeeRepo } from '../db/repositories';
+import { HygieneViolationRepo, EmployeeRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Employee, HygieneViolation } from '../types';
 import Autocomplete from '../components/common/Autocomplete';
@@ -79,6 +79,7 @@ export default function PersonalHygiene() {
           createdAt: new Date().toISOString()
         };
     await HygieneViolationRepo.save(rec);
+    if (!editing) await ActivityLogRepo.log('hygieneViolationLogged', siteFilter);
     setShowModal(false);
     load();
   };
@@ -177,14 +178,12 @@ export default function PersonalHygiene() {
             </div>
             <div className="form-field">
               <label>{lang === 'ar' ? 'الموظف' : 'Employee'}</label>
-              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-                <option value="">{lang === 'ar' ? '— اختر الموظف —' : '— Select Employee —'}</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name} ({e.code})
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                value={employeeId}
+                onChange={setEmployeeId}
+                options={employees.map((e) => ({ value: e.id, label: e.name, sublabel: e.code }))}
+                placeholder={lang === 'ar' ? 'ابحث بالاسم أو الكود' : 'Search by name or code'}
+              />
             </div>
           </div>
           <div className="form-field" style={{ marginTop: 10 }}>

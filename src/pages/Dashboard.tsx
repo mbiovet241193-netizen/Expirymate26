@@ -1,47 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRouter, type Route } from '../router/Router';
-import { ReportRepo } from '../db/repositories';
+import { ActivityLogRepo } from '../db/repositories';
 import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
-import type { SavedReport } from '../types';
+import type { ActivityLogEntry } from '../types';
 import DrDejaWelcomeCard, { type DrDejaSummaryItem, type DrDejaTotalItem } from '../components/assistant/DrDejaWelcomeCard';
+import HygieneTriangle from '../components/dashboard/HygieneTriangle';
+import ActivityFeed from '../components/dashboard/ActivityFeed';
 
 export default function Dashboard() {
   const { t, lang, settings } = useApp();
   const { navigate } = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [reports, setReports] = useState<SavedReport[]>([]);
+  const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [computedStats, savedReports] = await Promise.all([computeDashboardStats(), ReportRepo.all()]);
+      const [computedStats, recentActivity] = await Promise.all([computeDashboardStats(), ActivityLogRepo.recent(4)]);
       setStats(computedStats);
-
-      setReports(
-        savedReports
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 5)
-      );
+      setActivity(recentActivity);
     })();
   }, []);
 
-  const quickNav: { route: Route; icon: string; label: string }[] = [
-    { route: 'categories', icon: '🗂️', label: t('categories') },
-    { route: 'products', icon: '📦', label: t('products') },
-    { route: 'batches', icon: '⏳', label: t('batches') },
-    { route: 'calculator', icon: '🧮', label: t('calculator') },
-    { route: 'receiving', icon: '🚚', label: t('receiving') },
-    { route: 'nonConforming', icon: '⚠️', label: t('nonConforming') },
-    { route: 'healthCertificates', icon: '🩺', label: t('healthCertificates') },
-    { route: 'maintenance', icon: '🔧', label: lang === 'ar' ? 'الصيانة' : 'Maintenance' },
+  // Items that sit outside the hygiene triangle, as supporting functions ("More").
+  const moreItems: { route: Route; icon: string; label: string }[] = [
+    { route: 'documentReminders', icon: '🔔', label: lang === 'ar' ? 'منبه المستندات' : 'Document Reminder' },
     { route: 'shiftNotes', icon: '📝', label: lang === 'ar' ? 'ملاحظات الشفت' : 'Shift Notes' },
-    { route: 'pestControl', icon: '🐜', label: lang === 'ar' ? 'المكافحة' : 'Pest Control' },
-    { route: 'training', icon: '🎓', label: lang === 'ar' ? 'التدريب' : 'Training' },
-    { route: 'personalHygiene', icon: '🧼', label: lang === 'ar' ? 'النظافة الشخصية' : 'Personal Hygiene' },
-    { route: 'deepCleaning', icon: '🧽', label: lang === 'ar' ? 'النظافة العميقة' : 'Deep Cleaning' },
-    { route: 'search', icon: '🔍', label: t('search') },
     { route: 'reports', icon: '📊', label: t('reports') },
     { route: 'reportsArchive', icon: '🗄️', label: t('reportsArchive') },
+    { route: 'search', icon: '🔍', label: t('search') },
     { route: 'settings', icon: '⚙️', label: t('settings') },
     { route: 'about', icon: 'ℹ️', label: t('about') }
   ];
@@ -74,11 +61,17 @@ export default function Dashboard() {
       <DrDejaWelcomeCard lang={lang} gender={settings.doctorGender} doctorName={settings.doctorName} items={summaryItems} totals={totals} />
 
       <h2 className="section-title">
+        <span aria-hidden="true">🔺</span>
+        {lang === 'ar' ? 'محاور سلامة الغذاء' : 'Food Safety Pillars'}
+      </h2>
+      <HygieneTriangle lang={lang} onNavigate={navigate} />
+
+      <h2 className="section-title">
         <span aria-hidden="true">⚡</span>
-        {t('quickNav')}
+        {lang === 'ar' ? 'المزيد' : 'More'}
       </h2>
       <div className="quick-nav-grid">
-        {quickNav.map((item) => (
+        {moreItems.map((item) => (
           <div key={item.route} className="quick-nav-card" onClick={() => navigate(item.route)}>
             <div className="quick-nav-icon">{item.icon}</div>
             {item.label}
@@ -87,60 +80,10 @@ export default function Dashboard() {
       </div>
 
       <h2 className="section-title">
-        <span aria-hidden="true">🗒️</span>
-        {t('latestReports')}
+        <span aria-hidden="true">🕐</span>
+        {lang === 'ar' ? 'لوحة النشاط' : 'Activity Feed'}
       </h2>
-      {reports.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <span className="empty-state-icon">📄</span>
-            {t('noData')}
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="card desktop-only-table">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{lang === 'ar' ? 'العنوان' : 'Title'}</th>
-                  <th>{lang === 'ar' ? 'النوع' : 'Type'}</th>
-                  <th>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.title}</td>
-                    <td>{r.type}</td>
-                    <td>{new Date(r.createdAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mobile-cards">
-            {reports.map((r) => (
-              <div className="record-card" key={r.id}>
-                <div className="record-card-header">
-                  <div className="record-card-title">{r.title}</div>
-                </div>
-                <div className="record-card-row">
-                  <span>{lang === 'ar' ? 'النوع' : 'Type'}</span>
-                  <span>{r.type}</span>
-                </div>
-                <div className="record-card-row">
-                  <span>{lang === 'ar' ? 'التاريخ' : 'Date'}</span>
-                  <span>{new Date(r.createdAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US')}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <ActivityFeed entries={activity} lang={lang} />
     </div>
   );
 }
-
-

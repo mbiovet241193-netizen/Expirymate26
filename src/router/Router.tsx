@@ -15,6 +15,7 @@ export type Route =
   | 'training'
   | 'personalHygiene'
   | 'deepCleaning'
+  | 'documentReminders'
   | 'search'
   | 'reports'
   | 'reportsArchive'

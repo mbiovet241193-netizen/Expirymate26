@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MaintenanceRequestRepo } from '../../db/repositories';
+import { MaintenanceRequestRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { MaintenanceRequest } from '../../types';
 import Modal from '../common/Modal';
@@ -53,6 +53,7 @@ export default function MaintenanceRequestsManager({ siteName, onBack }: { siteN
       status: 'pending',
       createdAt: new Date().toISOString()
     });
+    await ActivityLogRepo.log('maintenanceRequestLogged', `${siteName} — ${description.trim()}`);
     setShowAdd(false);
     load();
   };

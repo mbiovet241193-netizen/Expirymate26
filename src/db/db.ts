@@ -2,7 +2,7 @@
 // Everything is stored 100% locally in the browser. No network calls.
 
 const DB_NAME = 'expirymate-db';
-const DB_VERSION = 5;
+const DB_VERSION = 7;
 
 export const STORES = {
   categories: 'categories',
@@ -25,7 +25,9 @@ export const STORES = {
   trainingRecords: 'trainingRecords',
   hygieneViolations: 'hygieneViolations',
   deepCleaningPlanItems: 'deepCleaningPlanItems',
-  deepCleaningExecutions: 'deepCleaningExecutions'
+  deepCleaningExecutions: 'deepCleaningExecutions',
+  documentReminders: 'documentReminders',
+  activityLog: 'activityLog'
 } as const;
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];

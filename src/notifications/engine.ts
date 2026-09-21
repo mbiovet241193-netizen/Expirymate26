@@ -1,9 +1,10 @@
 // Notification engine - runs a lightweight, one-shot check (never continuous
 // polling). Triggered on app open / tab becoming visible, and best-effort via
 // Periodic Background Sync where the browser supports it (see sw.js).
-import { BatchRepo, ProductRepo, EmployeeRepo, HealthCertificateRepo, NotificationLogRepo } from '../db/repositories';
+import { BatchRepo, ProductRepo, EmployeeRepo, HealthCertificateRepo, DocumentReminderRepo, NotificationLogRepo } from '../db/repositories';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
 import { computeCertificateStatus } from '../engine/certificateEngine';
+import { computeDocumentStatus } from '../engine/documentEngine';
 import { notificationLine, DAILY_REMINDER_LINE, drDejaNotificationIntro, DR_DEJA_SIGNATURE, type DoctorGender } from '../assistant/messages';
 import type { AppSettings } from '../types';
 import type { Lang } from '../i18n/translations';
@@ -112,6 +113,35 @@ export async function runNotificationCheck(settings: AppSettings): Promise<void>
         { status: 'near_expiry' }
       );
       await NotificationLogRepo.markSentToday('expiringCertificates');
+    }
+  }
+
+  // --- Document reminder categories ---
+  if (n.categories.expiredDocuments || n.categories.expiringDocuments) {
+    const documents = await DocumentReminderRepo.all();
+    let expiredDocCount = 0;
+    let expiringDocCount = 0;
+    documents.forEach((d) => {
+      const { status } = computeDocumentStatus(d.endDate);
+      if (status === 'expired') expiredDocCount++;
+      else if (status === 'near_expiry') expiringDocCount++;
+    });
+
+    if (n.categories.expiredDocuments && expiredDocCount > 0 && !(await NotificationLogRepo.wasSentToday('expiredDocuments'))) {
+      await showNotification(
+        'QualityMate — Dr. Deja',
+        `${intro}\n${notificationLine('expiredDocuments', expiredDocCount, lang)}\n${DR_DEJA_SIGNATURE}`,
+        'documentReminders'
+      );
+      await NotificationLogRepo.markSentToday('expiredDocuments');
+    }
+    if (n.categories.expiringDocuments && expiringDocCount > 0 && !(await NotificationLogRepo.wasSentToday('expiringDocuments'))) {
+      await showNotification(
+        'QualityMate — Dr. Deja',
+        `${intro}\n${notificationLine('expiringDocuments', expiringDocCount, lang)}\n${DR_DEJA_SIGNATURE}`,
+        'documentReminders'
+      );
+      await NotificationLogRepo.markSentToday('expiringDocuments');
     }
   }
 

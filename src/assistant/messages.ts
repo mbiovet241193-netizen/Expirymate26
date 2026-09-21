@@ -104,7 +104,7 @@ export const DR_DEJA_SIGNATURE = '\u2014 Dr. Deja';
 
 /** Builds a grouped notification body line for a given count + category, in the requested language. */
 export function notificationLine(
-  category: 'expiredProducts' | 'expiringProducts' | 'halfLifeProducts' | 'expiredCertificates' | 'expiringCertificates',
+  category: 'expiredProducts' | 'expiringProducts' | 'halfLifeProducts' | 'expiredCertificates' | 'expiringCertificates' | 'expiredDocuments' | 'expiringDocuments',
   count: number,
   lang: Lang
 ): string {
@@ -128,6 +128,14 @@ export function notificationLine(
     expiringCertificates: {
       ar: (n: number) => `توجد ${n} شهادات صحية ستنتهيان قريباً.`,
       en: (n: number) => `${n} health certificate(s) will expire soon.`
+    },
+    expiredDocuments: {
+      ar: (n: number) => `يوجد ${n} مستندات منتهية تحتاج للتحديث.`,
+      en: (n: number) => `${n} document(s) have expired and need updating.`
+    },
+    expiringDocuments: {
+      ar: (n: number) => `يوجد ${n} مستندات قاربت على الانتهاء خلال 30 يوماً.`,
+      en: (n: number) => `${n} document(s) are nearing expiry within 30 days.`
     }
   };
   return lines[category][lang](count);

@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRouter } from '../router/Router';
-import { BatchRepo, ProductRepo, CategoryRepo } from '../db/repositories';
+import { BatchRepo, ProductRepo, CategoryRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Batch, Category, Product, ProductStatus } from '../types';
 import { calculateExpiry, computeBatchStatus, STATUS_LABELS_AR, STATUS_LABELS_EN } from '../engine/shelfLifeEngine';
@@ -118,6 +118,7 @@ export default function ProductBatches() {
           createdAt: new Date().toISOString()
         };
     await BatchRepo.save(batch);
+    if (!editing) await ActivityLogRepo.log('batchAdded', product.name);
     setShowModal(false);
     load();
   };

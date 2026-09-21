@@ -304,6 +304,30 @@ export default function Settings() {
               </label>
             </div>
           </div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 8, color: 'var(--on-surface-variant)' }}>
+              {lang === 'ar' ? 'إشعارات منبه المستندات' : 'Document Reminder Notifications'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.notifications.categories.expiredDocuments}
+                  onChange={(e) => updateCategory('expiredDocuments', e.target.checked)}
+                />
+                {lang === 'ar' ? 'المستندات المنتهية' : 'Expired Documents'}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.notifications.categories.expiringDocuments}
+                  onChange={(e) => updateCategory('expiringDocuments', e.target.checked)}
+                />
+                {lang === 'ar' ? 'خلال 30 يومًا' : 'Expiring Within 30 Days'}
+              </label>
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

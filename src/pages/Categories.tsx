@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { CategoryRepo, ProductRepo } from '../db/repositories';
+import { CategoryRepo, ProductRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
 import type { Category } from '../types';
 import Modal from '../components/common/Modal';
@@ -38,6 +38,7 @@ export default function Categories() {
       ? { ...editing, name, nameAr }
       : { id: generateId(), name, nameAr, createdAt: new Date().toISOString() };
     await CategoryRepo.save(cat);
+    if (!editing) await ActivityLogRepo.log('categoryAdded', name);
     setShowModal(false);
     load();
   };

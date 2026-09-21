@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { DeepCleaningPlanRepo } from '../../db/repositories';
+import { DeepCleaningPlanRepo, ActivityLogRepo } from '../../db/repositories';
 import { generateId } from '../../db/db';
 import type { DeepCleaningPlanItem } from '../../types';
 import Modal from '../common/Modal';
@@ -52,6 +52,7 @@ export default function DeepCleaningPlanManager({ siteName, onBack }: { siteName
       ? { ...editing, elementName: elementName.trim(), daysOfWeek: Array.from(daysOfWeek).sort() }
       : { id: generateId(), siteName, elementName: elementName.trim(), daysOfWeek: Array.from(daysOfWeek).sort(), createdAt: new Date().toISOString() };
     await DeepCleaningPlanRepo.save(item);
+    if (!editing) await ActivityLogRepo.log('deepCleaningPlanUpdated', `${siteName} — ${elementName.trim()}`);
     setShowAdd(false);
     load();
   };
