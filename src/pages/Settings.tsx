@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { exportAllData, importAllData } from '../db/db';
+import { exportAllData, importAllData, factoryReset } from '../db/db';
 import { downloadJson, readJsonFile } from '../utils/export';
 import { sendTestNotification } from '../notifications/engine';
 import type { NotificationSettings } from '../types';
@@ -12,6 +12,7 @@ export default function Settings() {
   const { installed, canInstall, isIOS, promptInstall } = useInstallPrompt();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [restoreMode, setRestoreMode] = useState<'replace' | 'merge'>('replace');
   const [showWhatsAppBackup, setShowWhatsAppBackup] = useState(false);
 
   const [siteNameInput, setSiteNameInput] = useState('');
@@ -83,17 +84,71 @@ export default function Settings() {
   };
 
   const doRestore = async (file: File) => {
-    if (
-      !confirm(
+    const confirmMsg =
+      restoreMode === 'replace'
+        ? lang === 'ar'
+          ? 'ستحل هذه العملية محل جميع البيانات الحالية بالكامل (إعادة ضبط ثم استعادة). هل تريد المتابعة؟'
+          : 'This will completely replace all current data (reset then restore). Continue?'
+        : lang === 'ar'
+        ? 'سيتم دمج بيانات النسخة الاحتياطية مع البيانات الحالية: تحديث المطابق منها وإضافة الجديد، دون حذف أي شيء موجود حاليًا. هل تريد المتابعة؟'
+        : "This will merge the backup into your current data: updating matching records and adding new ones, without deleting anything currently there. Continue?";
+    if (!confirm(confirmMsg)) return;
+    let data: any;
+    try {
+      data = await readJsonFile(file);
+    } catch {
+      alert(
         lang === 'ar'
-          ? 'ستحل هذه العملية محل جميع البيانات الحالية بالكامل. هل تريد المتابعة؟'
-          : 'This will completely replace all current data. Continue?'
-      )
-    )
+          ? 'تعذّرت قراءة هذا الملف — تأكد أنه ملف نسخة احتياطية صالح (JSON) ولم يتلف أو يتغير امتداده.'
+          : "Couldn't read this file — make sure it's a valid backup (JSON) file and its extension wasn't changed."
+      );
       return;
-    const data = await readJsonFile(file);
-    await importAllData(data);
-    alert(lang === 'ar' ? 'تمت الاستعادة بنجاح. يرجى إعادة تحميل الصفحة.' : 'Restore complete. Please reload the page.');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      alert(lang === 'ar' ? 'هذا الملف لا يبدو نسخة احتياطية صالحة.' : "This file doesn't look like a valid backup."
+      );
+      return;
+    }
+    let restoredCount: number;
+    try {
+      restoredCount = await importAllData(data, restoreMode);
+    } catch {
+      alert(
+        lang === 'ar'
+          ? 'حدث خطأ أثناء الاستعادة. قد تكون بعض البيانات داخل الملف تالفة. لم يتم تغيير أي شيء.'
+          : 'An error occurred during restore. Some data in the file may be corrupted. Nothing was changed.'
+      );
+      return;
+    }
+    if (restoredCount === 0) {
+      alert(
+        lang === 'ar'
+          ? 'تم فتح الملف لكن لم يتم العثور على أي بيانات معروفة بداخله. لم يتم تغيير أي شيء.'
+          : "The file opened but no recognizable data was found inside it. Nothing was changed."
+      );
+      return;
+    }
+    alert(
+      lang === 'ar'
+        ? `تمت الاستعادة بنجاح (${restoredCount} سجل). يرجى إعادة تحميل الصفحة.`
+        : `Restore complete (${restoredCount} records). Please reload the page.`
+    );
+    window.location.reload();
+  };
+
+  const doFactoryReset = async () => {
+    const firstWarning =
+      lang === 'ar'
+        ? 'سيؤدي هذا إلى حذف جميع بيانات التطبيق نهائيًا (المنتجات، الدفعات، المواقع، الصيانة، التدريب، وكل شيء آخر) وإعادته لحالته كأول تثبيت. لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟'
+        : 'This will permanently delete ALL app data (products, batches, sites, maintenance, training, and everything else) and reset it to a fresh install. This cannot be undone. Continue?';
+    if (!confirm(firstWarning)) return;
+    const secondWarning =
+      lang === 'ar'
+        ? 'تأكيد أخير: هل أنت متأكد تمامًا من حذف كل البيانات نهائيًا؟ يُفضّل عمل نسخة احتياطية أولًا إن لم تكن قد فعلت.'
+        : 'Final confirmation: are you absolutely sure you want to permanently erase all data? Consider making a backup first if you haven\u2019t already.';
+    if (!confirm(secondWarning)) return;
+    await factoryReset();
+    alert(lang === 'ar' ? 'تمت إعادة الضبط بنجاح. سيتم إعادة تحميل الصفحة.' : 'Factory reset complete. The page will now reload.');
     window.location.reload();
   };
 
@@ -363,20 +418,60 @@ export default function Settings() {
           <button className="btn btn-primary" onClick={doBackup}>
             ⬇️ {t('backup')}
           </button>
-          <button className="btn btn-outline" onClick={() => restoreInputRef.current?.click()}>
-            ⬆️ {t('restore')}
-          </button>
           <button className="btn btn-outline" onClick={() => setShowWhatsAppBackup(true)}>
             🟢 {lang === 'ar' ? 'مشاركة نسخة احتياطية عبر واتساب' : 'Share Backup via WhatsApp'}
           </button>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 6 }}>{t('restore')}</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-outline"
+              onClick={() => {
+                setRestoreMode('replace');
+                restoreInputRef.current?.click();
+              }}
+            >
+              ⬆️ {lang === 'ar' ? 'استعادة مع إعادة ضبط الحالي' : 'Restore & Reset Current Data'}
+            </button>
+            <button
+              className="btn btn-outline"
+              onClick={() => {
+                setRestoreMode('merge');
+                restoreInputRef.current?.click();
+              }}
+            >
+              🔀 {lang === 'ar' ? 'استعادة مع الدمج والتحديث' : 'Restore & Merge/Update'}
+            </button>
+          </div>
+          <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.78rem', marginTop: 6 }}>
+            {lang === 'ar'
+              ? '"إعادة ضبط الحالي" تمسح البيانات الموجودة وتستبدلها بالكامل بمحتوى النسخة الاحتياطية. "الدمج والتحديث" تحدّث السجلات المطابقة وتضيف الجديد منها فقط، دون حذف أي شيء من بياناتك الحالية.'
+              : '"Reset Current Data" erases existing data and fully replaces it with the backup\u2019s content. "Merge/Update" updates matching records and adds new ones only, without deleting any of your current data.'}
+          </p>
           <input
             type="file"
-            accept="application/json,.json,.txt"
+            accept=".json,.txt,application/json,text/plain,*/*"
             ref={restoreInputRef}
             style={{ display: 'none' }}
             onChange={(e) => e.target.files && doRestore(e.target.files[0])}
           />
         </div>
+      </div>
+
+      <div className="card" style={{ borderColor: 'var(--danger)', borderWidth: 1, borderStyle: 'solid' }}>
+        <h2 className="section-title" style={{ color: 'var(--danger)' }}>
+          {lang === 'ar' ? 'إعادة ضبط المصنع' : 'Factory Reset'}
+        </h2>
+        <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.85rem' }}>
+          {lang === 'ar'
+            ? 'يحذف جميع بيانات التطبيق نهائيًا ويعيده لحالته الأولى قبل أي استخدام. إجراء لا يمكن التراجع عنه.'
+            : 'Permanently deletes all app data and resets it to its original, never-used state. This action cannot be undone.'}
+        </p>
+        <button className="btn btn-danger" onClick={doFactoryReset}>
+          🏭 {lang === 'ar' ? 'إعادة ضبط المصنع' : 'Factory Reset'}
+        </button>
       </div>
 
       {showWhatsAppBackup && (

@@ -859,6 +859,30 @@ table.data-table tr:hover td {
   align-items: center;
   gap: 8px;
 }
+.dr-deja-attention-item {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  transition: background 0.15s ease;
+}
+.dr-deja-attention-item:hover {
+  background: var(--surface-container-high);
+}
+.dr-deja-weekly-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--outline);
+  font-size: 0.85rem;
+}
+.dr-deja-weekly-metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
 .dr-deja-summary-dot {
   width: 9px;
   height: 9px;

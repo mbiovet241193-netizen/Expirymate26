@@ -26,6 +26,7 @@ import type {
 } from '../types';
 import DateInput from '../components/common/DateInput';
 import { computeBatchStatus } from '../engine/shelfLifeEngine';
+import { buildAttentionList, buildWeeklyComparison } from '../engine/insights';
 import { computeCertificateStatus } from '../engine/certificateEngine';
 import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
 import StatusBadge from '../components/common/StatusBadge';
@@ -182,6 +183,60 @@ export default function Reports() {
       alertRow(lang === 'ar' ? 'شهادات صحية خلال 30 يومًا' : 'Health Certificates Expiring Within 30 Days', s.expiringCerts),
       infoRow(lang === 'ar' ? 'سجلات استلام اليوم' : "Today's Receiving Records", s.receivingToday)
     ];
+  };
+
+  /**
+   * The report's executive brief — same attention-list/weekly-comparison logic that feeds
+   * Dr. Deja's dashboard card, scoped to setupSite, so the numbers a manager sees here always
+   * match what Dr. Deja shows for the same site. This replaces the old flat indicator table
+   * in the on-screen/printed view (the full detailed table is still available in the CSV export).
+   */
+  const reportExecutiveBrief = () => {
+    const items = buildAttentionList({
+      batches,
+      products,
+      certificates,
+      documents,
+      nonConforming: nonConformingRecords,
+      maintenancePlan: maintenancePlanItems,
+      maintenanceRequests,
+      trainingPlan: trainingPlanItems,
+      siteName: setupSite || undefined
+    });
+    const weeklyMetrics = buildWeeklyComparison({
+      hygieneViolations,
+      deepCleaningPlan: deepCleaningPlanItems,
+      deepCleaningExecutions,
+      siteName: setupSite || undefined
+    });
+
+    // "What improved" - the one concrete, verifiable improvement we can state from existing data:
+    // maintenance requests actually closed during the period, out of what's pending now.
+    const ops = operationalReportData();
+    const improvedLines: string[] = [];
+    if (ops.visits.length > 0) {
+      const closedRequestsThisPeriod = maintenanceRequests.filter(
+        (r) => r.siteName === setupSite && r.status === 'done' && r.closedDate && r.closedDate >= ops.from && r.closedDate <= ops.to
+      ).length;
+      if (closedRequestsThisPeriod > 0) {
+        improvedLines.push(
+          lang === 'ar'
+            ? `تم إغلاق ${closedRequestsThisPeriod} من طلبات الصيانة خلال هذه الفترة`
+            : `${closedRequestsThisPeriod} maintenance request(s) closed during this period`
+        );
+      }
+    }
+
+    const narrative =
+      items.length === 0
+        ? lang === 'ar'
+          ? 'لا توجد بنود تحتاج انتباهًا خاصًا خلال هذه الفترة.'
+          : 'No items require special attention during this period.'
+        : lang === 'ar'
+        ? `${items.length} ${items.length === 1 ? 'بند يحتاج' : 'بنود تحتاج'} انتباهًا خلال هذه الفترة.`
+        : `${items.length} item${items.length === 1 ? '' : 's'} require attention during this period.`;
+
+    return { items, weeklyMetrics, improvedLines, narrative };
   };
 
   const filteredForReport = (type: ReportType) => {
@@ -599,7 +654,7 @@ export default function Reports() {
   };
 
   if (activeReport === 'full') {
-    const execRows = execStats ? executiveSummaryIndicators(execStats) : [];
+    const brief = reportExecutiveBrief();
     const receivingRows = receivingCategorySummary(setupDate);
     const certRows = certificatesNeedingAttention();
     const ncRows = nonConformingForMonth(setupDate);
@@ -652,26 +707,43 @@ export default function Reports() {
 
           {/* Section 1 — Executive Summary */}
           <h3 className="report-section-title">{lang === 'ar' ? '١. الملخص التنفيذي' : '1. Executive Summary'}</h3>
-          <div className="desktop-only-table">
-            <table className="data-table">
-              <tbody>
-                {execRows.map((row) => (
-                  <tr key={row.label}>
-                    <td style={{ fontWeight: 700 }}>{row.label}</td>
-                    <td style={{ color: row.count > 0 ? 'var(--danger)' : 'var(--primary)', fontWeight: 700 }}>{row.display}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mobile-cards no-print">
-            {execRows.map((row) => (
-              <div className="record-card-row" key={row.label}>
-                <span>{row.label}</span>
-                <span style={{ color: row.count > 0 ? 'var(--danger)' : 'var(--primary)', fontWeight: 700 }}>{row.display}</span>
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: '0.92rem', marginBottom: 12 }}>{brief.narrative}</p>
+
+          {brief.items.length > 0 && (
+            <ul style={{ margin: '0 0 14px', paddingInlineStart: 20, fontSize: '0.9rem' }}>
+              {brief.items.map((item) => (
+                <li key={item.id} style={{ marginBottom: 4 }}>
+                  <span aria-hidden="true">{item.icon}</span> {lang === 'ar' ? item.textAr : item.textEn}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {brief.weeklyMetrics.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              {brief.weeklyMetrics.map((m) => {
+                const arrow = m.current === m.previous ? '' : m.current > m.previous ? '↑' : '↓';
+                return (
+                  <div key={m.labelAr} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', maxWidth: 340 }}>
+                    <span>{lang === 'ar' ? m.labelAr : m.labelEn}</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {m.current}
+                      {m.unit ?? ''} {arrow} {lang === 'ar' ? 'كانت' : 'was'} {m.previous}
+                      {m.unit ?? ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {brief.improvedLines.length > 0 && (
+            <div style={{ fontSize: '0.88rem', color: 'var(--success)' }}>
+              {brief.improvedLines.map((line) => (
+                <div key={line}>✅ {line}</div>
+              ))}
+            </div>
+          )}
 
           {/* Section 2 — Monthly Receiving Summary */}
           <h3 className="report-section-title" style={{ marginTop: 26 }}>

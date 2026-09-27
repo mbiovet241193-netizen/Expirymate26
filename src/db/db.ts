@@ -122,14 +122,44 @@ export async function exportAllData(): Promise<Record<StoreName, unknown[]>> {
   return result;
 }
 
-/** Restores the entire local database from a previously exported backup object. */
-export async function importAllData(data: Record<string, unknown[]>): Promise<void> {
-  for (const store of Object.values(STORES)) {
-    if (Array.isArray(data[store])) {
-      await dbClear(store);
-      await dbBulkPut(store, data[store] as { id: string }[]);
+/** Restores the entire local database from a previously exported backup object, in one atomic transaction.
+ * mode 'replace': clears each affected store first (old behavior) - the backup fully replaces current data.
+ * mode 'merge': does not clear anything - records are upserted by id (updates existing, adds new), current
+ * data not present in the backup is left untouched.
+ * Returns the total number of records restored. */
+export async function importAllData(data: Record<string, unknown[]>, mode: 'replace' | 'merge' = 'replace'): Promise<number> {
+  const db = await openDb();
+  const storesToRestore = Object.values(STORES).filter((store) => Array.isArray(data[store]));
+  if (storesToRestore.length === 0) return 0;
+
+  return new Promise((resolve, reject) => {
+    let total = 0;
+    const tx = db.transaction(storesToRestore, 'readwrite');
+    tx.oncomplete = () => resolve(total);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+
+    for (const store of storesToRestore) {
+      const os = tx.objectStore(store);
+      if (mode === 'replace') os.clear();
+      const rows = (data[store] as { id: string }[]).filter((v) => v && typeof v === 'object' && typeof v.id === 'string');
+      rows.forEach((v) => os.put(v));
+      total += rows.length;
     }
-  }
+  });
+}
+
+/** Wipes every store back to empty - a full factory reset. Irreversible. */
+export async function factoryReset(): Promise<void> {
+  const db = await openDb();
+  const allStores = Object.values(STORES);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(allStores, 'readwrite');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+    for (const store of allStores) tx.objectStore(store).clear();
+  });
 }
 
 export function generateId(): string {

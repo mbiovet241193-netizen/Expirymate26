@@ -3,7 +3,7 @@ export type Lang = 'ar' | 'en';
 export const translations = {
   ar: {
     appName: 'QualityMate',
-    tagline: 'مساعدك الذكي لإدارة الصلاحيات',
+    tagline: 'مساعدك الذكي لإدارة الجودة وسلامة الغذاء',
     dashboard: 'لوحة التحكم',
     categories: 'الفئات',
     products: 'المنتجات',
@@ -75,7 +75,7 @@ export const translations = {
   },
   en: {
     appName: 'QualityMate',
-    tagline: 'Your Smart Quality Assistant',
+    tagline: 'Your Smart Assistant for Quality & Food Safety Management',
     dashboard: 'Dashboard',
     categories: 'Categories',
     products: 'Products',

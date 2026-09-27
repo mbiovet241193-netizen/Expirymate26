@@ -90,7 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return (
       <div className="splash-loading">
         <div className="splash-logo">QualityMate</div>
-        <div className="splash-sub">مساعدك الذكي لإدارة الصلاحيات</div>
+        <div className="splash-sub">مساعدك الذكي لإدارة الجودة وسلامة الغذاء</div>
       </div>
     );
   }

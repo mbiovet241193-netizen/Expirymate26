@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { CategoryRepo, ReceivingRepo, ReportRepo, ProductRepo, BatchRepo, ActivityLogRepo } from '../db/repositories';
 import { generateId } from '../db/db';
@@ -21,6 +21,9 @@ export default function ReceivingRegister() {
   const [doctorName, setDoctorName] = useState(settings.doctorName);
   const [doctorCode, setDoctorCode] = useState(settings.doctorCode);
   const [vehicleTemp, setVehicleTemp] = useState('');
+  const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [rows, setRows] = useState<ReceivingRow[]>([]);
   const [showReport, setShowReport] = useState(false);
@@ -33,6 +36,13 @@ export default function ReceivingRegister() {
       setProducts(await ProductRepo.all());
     })();
   }, []);
+
+  const onImageSelected = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImageDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const addRow = () => {
     setRows((r) => [
@@ -113,6 +123,7 @@ export default function ReceivingRegister() {
       doctorName,
       doctorCode,
       vehicleTemp,
+      imageDataUrl,
       rows,
       createdAt: new Date().toISOString()
     };
@@ -188,7 +199,7 @@ export default function ReceivingRegister() {
           </div>
         )}
         <ReceivingPrintReport
-          session={{ siteName, supplierName, receivingDate, receivingTime, doctorName, doctorCode, vehicleTemp, rows }}
+          session={{ siteName, supplierName, receivingDate, receivingTime, doctorName, doctorCode, vehicleTemp, imageDataUrl, rows }}
           catName={catName}
           onBack={() => setShowReport(false)}
         />
@@ -238,6 +249,26 @@ export default function ReceivingRegister() {
           <div className="form-field">
             <label>{lang === 'ar' ? 'حرارة السيارة' : 'Vehicle Temperature'}</label>
             <input value={vehicleTemp} onChange={(e) => setVehicleTemp(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="form-field" style={{ marginTop: 14 }}>
+          <label>{lang === 'ar' ? 'صورة الاستلام (اختياري)' : 'Receiving Photo (optional)'}</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {imageDataUrl && <img src={imageDataUrl} alt="receiving" style={{ height: 60, borderRadius: 8 }} />}
+            <button className="btn btn-outline btn-sm" onClick={() => cameraInputRef.current?.click()}>
+              📷 {lang === 'ar' ? 'التقاط بالكاميرا' : 'Capture from Camera'}
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={() => galleryInputRef.current?.click()}>
+              🖼️ {lang === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery'}
+            </button>
+            {imageDataUrl && (
+              <button className="btn btn-outline btn-sm" onClick={() => setImageDataUrl(undefined)}>
+                {lang === 'ar' ? 'إزالة' : 'Remove'}
+              </button>
+            )}
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => onImageSelected(e.target.files?.[0])} />
+            <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => onImageSelected(e.target.files?.[0])} />
           </div>
         </div>
       </div>
@@ -457,6 +488,12 @@ function ReceivingPrintReport({
           <Field label={t('doctorCode')} value={session.doctorCode} />
           <Field label={lang === 'ar' ? 'حرارة السيارة' : 'Vehicle Temperature'} value={session.vehicleTemp || '—'} />
         </div>
+
+        {session.imageDataUrl && (
+          <div style={{ marginBottom: 18 }}>
+            <img src={session.imageDataUrl} alt="receiving" style={{ maxHeight: 220, borderRadius: 8 }} />
+          </div>
+        )}
 
         <div className="desktop-only-table">
           <table className="data-table">

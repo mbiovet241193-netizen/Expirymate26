@@ -32,16 +32,16 @@ export default function About() {
       <div className="card" style={{ textAlign: 'center', padding: 30 }}>
         <div style={{ fontSize: '2rem' }}>🛡️</div>
         <h1 style={{ margin: '8px 0 4px', fontWeight: 800 }}>QualityMate</h1>
-        <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>Your Smart Quality Assistant</div>
-        <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>مساعدك الذكي لإدارة ومراقبة الصلاحيات</div>
+        <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>Your Smart Assistant for Quality & Food Safety Management</div>
+        <div style={{ color: 'var(--on-surface-variant)', fontWeight: 600 }}>مساعدك الذكي لإدارة الجودة وسلامة الغذاء</div>
       </div>
 
       <div className="card">
         <h2 className="section-title">{lang === 'ar' ? 'نظرة عامة على التطبيق' : 'Application Overview'}</h2>
         <p>
           {lang === 'ar'
-            ? 'QualityMate هو مساعد متخصص لأطباء الجودة وأخصائيي سلامة الغذاء في شركات التموين والمصانع الغذائية والمطابخ المركزية والمخازن، لإدارة تواريخ الصلاحية وتطبيق نظام FEFO وتسجيل الاستلام وتتبع المنتجات غير المطابقة، دون الحاجة لأي اتصال بالإنترنت.'
-            : 'QualityMate is a specialized assistant for Quality Doctors and Food Safety Specialists in catering companies, food factories, central kitchens, and warehouses — for expiry management, FEFO, receiving records, and non-conforming product tracking, fully offline.'}
+            ? 'QualityMate هو مساعد شامل لأطباء الجودة وأخصائيي سلامة الغذاء ومديري المواقع في شركات التموين والمصانع الغذائية والمطابخ المركزية والمخازن. يغطي التطبيق المحاور الثلاثة لسلامة الغذاء — النظافة الشخصية، نظافة الغذاء، والنظافة البيئية — من متابعة الصلاحيات وسجل الاستلام، إلى الشهادات الصحية والتدريب، مرورًا بالصيانة ومكافحة الآفات والنظافة العميقة، وحتى ملاحظات الشفت ومنبه المستندات، كل ذلك دون الحاجة لأي اتصال بالإنترنت.'
+            : 'QualityMate is a comprehensive assistant for Quality Doctors, Food Safety Specialists, and Site Managers in catering companies, food factories, central kitchens, and warehouses. The app covers all three pillars of food safety — Personal Hygiene, Food Hygiene, and Environmental Hygiene — from expiry follow-up and receiving records to health certificates and training, through maintenance, pest control, and deep cleaning, down to shift notes and document reminders — fully offline.'}
         </p>
       </div>
 
@@ -50,6 +50,7 @@ export default function About() {
         <ul>
           <li>{lang === 'ar' ? 'تطبيق دقيق لنظام FEFO' : 'Accurate FEFO implementation'}</li>
           <li>{lang === 'ar' ? 'حسابات صلاحية طبقًا للمواصفة المصرية' : 'Egyptian Standard-compliant shelf-life calculations'}</li>
+          <li>{lang === 'ar' ? 'تغطية كاملة لمحاور سلامة الغذاء الثلاثة داخل تطبيق واحد' : 'Full coverage of all three food-safety pillars in one app'}</li>
           <li>{lang === 'ar' ? 'تقارير احترافية جاهزة للطباعة' : 'Professional, print-ready reports'}</li>
           <li>{lang === 'ar' ? 'خصوصية كاملة - لا سحابة، لا تتبع' : 'Complete privacy — no cloud, no tracking'}</li>
         </ul>
@@ -59,8 +60,8 @@ export default function About() {
         <h2 className="section-title">{lang === 'ar' ? 'الميزات الرئيسية' : 'Main Features'}</h2>
         <p>
           {lang === 'ar'
-            ? 'محرك صلاحية مصري مبني على المواصفة القياسية المصرية 2613-1/2008، لوحة تحكم، إدارة الفئات والمنتجات ومتابعة الصلاحية، حاسبة صلاحية، سجل استلام، متابعة المنتجات غير المطابقة، متابعة الشهادات الصحية للموظفين، بحث وفلترة متقدمة، تقارير قابلة للتصدير، إشعارات ذكية اختيارية، وضع فاتح وداكن، ودعم كامل للغة العربية RTL.'
-            : 'Egyptian Shelf-Life Engine based on Egyptian Standard 2613-1/2008, dashboard, category/product/expiry-follow-up management, shelf-life calculator, receiving register, non-conforming tracking, employee health certificate tracking, advanced search & filters, exportable reports, optional smart notifications, dark/light mode, and full Arabic RTL support.'}
+            ? 'محرك صلاحية مصري مبني على المواصفة القياسية المصرية 2613-1/2008، لوحة تحكم بمحاور سلامة الغذاء الثلاثة ولوحة نشاط فعلي، إدارة الفئات والمنتجات ومتابعة الصلاحية حسب الموقع مع حاسبة صلاحية وسجل استلام ومتابعة المنتجات غير المطابقة، متابعة الشهادات الصحية للموظفين والتدريب بخطته السنوية وسجلاته، الصيانة الوقائية والعلاجية بزياراتها وطلباتها، مكافحة الآفات، النظافة الشخصية بتسجيل المخالفات وتقاريرها، النظافة العميقة بخطتها الأسبوعية ومتابعتها اليومية، ملاحظات الشفت اليومية، منبه المستندات بتنبيهاته التلقائية، بحث عام يغطي كل أقسام التطبيق، تقارير شاملة قابلة للتصدير والأرشفة، نسخ احتياطي واستعادة كاملين، إشعارات ذكية اختيارية، وضع فاتح وداكن، ودعم كامل للغة العربية RTL.'
+            : 'Egyptian Shelf-Life Engine based on Egyptian Standard 2613-1/2008, a dashboard built around the three food-safety pillars with a real activity feed, category/product management and site-based expiry follow-up with a shelf-life calculator, receiving register, and non-conforming tracking, employee health certificate tracking and training with its annual plan and records, preventive and corrective maintenance with visits and requests, pest control, personal hygiene violation logging with dedicated reports, deep cleaning with a weekly plan and daily follow-up, daily shift notes, document reminders with automatic alerts, a general search covering every part of the app, comprehensive exportable and archivable reports, full backup & restore, optional smart notifications, dark/light mode, and full Arabic RTL support.'}
         </p>
       </div>
 

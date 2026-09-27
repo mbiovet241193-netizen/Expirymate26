@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRouter, type Route } from '../router/Router';
-import { ActivityLogRepo } from '../db/repositories';
+import {
+  ActivityLogRepo,
+  BatchRepo,
+  ProductRepo,
+  HealthCertificateRepo,
+  DocumentReminderRepo,
+  NonConformingRepo,
+  MaintenancePlanRepo,
+  MaintenanceRequestRepo,
+  TrainingPlanRepo,
+  HygieneViolationRepo,
+  DeepCleaningPlanRepo,
+  DeepCleaningExecutionRepo
+} from '../db/repositories';
 import { computeDashboardStats, type DashboardStats } from '../engine/dashboardStats';
+import { buildAttentionList, buildWeeklyComparison, type AttentionItem, type WeeklyMetric } from '../engine/insights';
 import type { ActivityLogEntry } from '../types';
-import DrDejaWelcomeCard, { type DrDejaSummaryItem, type DrDejaTotalItem } from '../components/assistant/DrDejaWelcomeCard';
+import DrDejaWelcomeCard, { type DrDejaTotalItem } from '../components/assistant/DrDejaWelcomeCard';
 import HygieneTriangle from '../components/dashboard/HygieneTriangle';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
 
@@ -13,12 +27,47 @@ export default function Dashboard() {
   const { navigate } = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
+  const [attentionItems, setAttentionItems] = useState<AttentionItem[]>([]);
+  const [weeklyMetrics, setWeeklyMetrics] = useState<WeeklyMetric[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [computedStats, recentActivity] = await Promise.all([computeDashboardStats(), ActivityLogRepo.recent(4)]);
+      const [
+        computedStats,
+        recentActivity,
+        batches,
+        products,
+        certificates,
+        documents,
+        nonConforming,
+        maintenancePlan,
+        maintenanceRequests,
+        trainingPlan,
+        hygieneViolations,
+        deepCleaningPlan,
+        deepCleaningExecutions
+      ] = await Promise.all([
+        computeDashboardStats(),
+        ActivityLogRepo.recent(4),
+        BatchRepo.all(),
+        ProductRepo.all(),
+        HealthCertificateRepo.all(),
+        DocumentReminderRepo.all(),
+        NonConformingRepo.all(),
+        MaintenancePlanRepo.all(),
+        MaintenanceRequestRepo.all(),
+        TrainingPlanRepo.all(),
+        HygieneViolationRepo.all(),
+        DeepCleaningPlanRepo.all(),
+        DeepCleaningExecutionRepo.all()
+      ]);
+
       setStats(computedStats);
       setActivity(recentActivity);
+      setAttentionItems(
+        buildAttentionList({ batches, products, certificates, documents, nonConforming, maintenancePlan, maintenanceRequests, trainingPlan })
+      );
+      setWeeklyMetrics(buildWeeklyComparison({ hygieneViolations, deepCleaningPlan, deepCleaningExecutions }));
     })();
   }, []);
 
@@ -35,21 +84,6 @@ export default function Dashboard() {
 
   if (!stats) return null;
 
-  const summaryItems: DrDejaSummaryItem[] = [
-    { label: t('expiredProducts'), count: stats.expired, color: 'var(--danger)' },
-    { label: t('within30Days'), count: stats.within30, color: 'var(--info)' },
-    { label: t('expiringSoon'), count: stats.expiringSoon, color: '#EF6C00' },
-    { label: t('afterHalf'), count: stats.afterHalf, color: 'var(--warning)' },
-    { label: t('nonConformingCount'), count: stats.nonConforming, color: 'var(--danger)' },
-    { label: lang === 'ar' ? 'شهادات صحية منتهية' : 'Expired Health Certificates', count: stats.expiredCerts, color: 'var(--danger)' },
-    {
-      label: lang === 'ar' ? 'شهادات صحية خلال 30 يومًا' : 'Health Certificates Expiring Within 30 Days',
-      count: stats.expiringCerts,
-      color: 'var(--info)'
-    },
-    { label: lang === 'ar' ? 'سجلات استلام اليوم' : "Today's Receiving Records", count: stats.receivingToday, color: 'var(--primary)' }
-  ];
-
   const totals: DrDejaTotalItem[] = [
     { label: t('totalProducts'), value: stats.totalProducts, icon: '📦' },
     { label: t('totalBatches'), value: stats.totalBatches, icon: '⏳' },
@@ -58,7 +92,15 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DrDejaWelcomeCard lang={lang} gender={settings.doctorGender} doctorName={settings.doctorName} items={summaryItems} totals={totals} />
+      <DrDejaWelcomeCard
+        lang={lang}
+        gender={settings.doctorGender}
+        doctorName={settings.doctorName}
+        attentionItems={attentionItems}
+        weeklyMetrics={weeklyMetrics}
+        totals={totals}
+        onNavigate={navigate}
+      />
 
       <h2 className="section-title">
         <span aria-hidden="true">🔺</span>

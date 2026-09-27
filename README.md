@@ -1,11 +1,14 @@
 # QualityMate
 
-**Your Smart Quality Assistant** — مساعدك الذكي لإدارة الصلاحيات
+**Your Smart Assistant for Quality & Food Safety Management** — مساعدك الذكي لإدارة الجودة وسلامة الغذاء
 
-A fully offline, installable Progressive Web App for Quality Doctors and Food
-Safety Specialists to manage expiry dates, FEFO, receiving records, and
-non-conforming products in catering companies, food factories, central
-kitchens, and warehouses.
+A fully offline, installable Progressive Web App for Quality Doctors, Food
+Safety Specialists, and Site Managers, covering all three pillars of food
+safety — Personal Hygiene, Food Hygiene, and Environmental Hygiene — in
+catering companies, food factories, central kitchens, and warehouses:
+expiry follow-up, FEFO, receiving records, non-conforming products, health
+certificates, training, maintenance, pest control, personal and deep
+cleaning, shift notes, and document reminders.
 
 ## Getting Started
 

@@ -1,7 +1,7 @@
 {
-  "name": "QualityMate - مساعدك الذكي لإدارة الصلاحيات",
+  "name": "QualityMate - مساعدك الذكي لإدارة الجودة وسلامة الغذاء",
   "short_name": "QualityMate",
-  "description": "Your Smart Quality Assistant for expiry management, FEFO, and Egyptian shelf-life calculations.",
+  "description": "Your Smart Assistant for Quality & Food Safety Management — expiry follow-up, maintenance, training, pest control, hygiene, and more.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -83,6 +83,7 @@ export interface ReceivingSession {
   doctorName: string;
   doctorCode: string;
   vehicleTemp?: string; // applies to the whole receiving session, entered once
+  imageDataUrl?: string; // optional photo of the delivery/invoice, camera or gallery
   rows: ReceivingRow[];
   createdAt: string;
 }
